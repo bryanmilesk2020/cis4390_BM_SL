@@ -23,3 +23,9 @@ dates of employment, periods of which employees took paid sick leave, copies of 
 copies of returns filed, records of allocated tips, records of fringe benefits provided, including substantiation).
 
 ## What will the project NOT do?
+
+This project (business dashboard) is not a full business management system. It does NOT handle payroll, scheduling, customer databases, or supply chain logistics. 
+The business dashboard is not a real time multi-user distributed blockchain. There are no peer-to-peer modes, network consensus, distributed syncing, or cloud 
+blockchain clusters. This dashboard is not going to have predictive modeling capabilities, ML forecasting, etc. Analytics will only consist of totals, trends, 
+and summaries. This tool is not a high-security enterprise compliance tool, it just demonstrates integrity with blockchain hashing. This dashboard also, will not 
+handle cryptocurrency transactions.
