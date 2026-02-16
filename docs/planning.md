@@ -11,6 +11,7 @@ on record for IRS review.
 
 **Gross receipts** (cash register tapes, deposit information, receipt books, invoices, forms 1099-MISC) that show the amounts and sources of gross receipts,
 
+
 **Purchases** (canceled checks/documents reflecting proof of payment, cash register tape receipts, credit card receipts and statements, invoices) that identify 
 payee, the amount paid, proof of payment, the date incurred, and include description of item, 
 
