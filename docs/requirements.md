@@ -21,4 +21,7 @@
 
 1. The UI shall be intuitive and readable (easy to find certain records)
 
-2. 
+
+**Constraints**
+
+Tools: Python/Streamlit
