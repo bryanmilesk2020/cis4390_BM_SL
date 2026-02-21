@@ -1,0 +1,44 @@
+﻿1. Dashboard UI 
+   1. What it is
+      1. where managers, owners, and auditors interact with the system
+   2. functions and features
+      1. view records
+      2. option to add/store a record
+      3. have separate types for business record type
+      4. ability to view integrity of records
+      5. login features, with options to select what user role
+      6. display business metrics such as revenue (**maybe) possibly on home page
+      7. record filtering, feature that should be on tab where you can view records
+      8. should only send requests to backend and display results
+      9. main dashboard, views, charts, audit view
+2. Backend processing
+   1. what it is
+      1. handle requests made by user and reply with results that the UI will display
+   2. functions and features
+      1. understand who is logging in and what their role is (referring to an active directory)
+      2. store business records
+      3. generate summaries (**maybe)
+      4. calculate metrics (**maybe)
+      5. request blockchain verification
+      6. record manager, analytics, access control, ledger interface
+3. Blockchain ledger engine
+   1. what it is
+      1. a database containing blocks that each contain business records chained by hashes
+   2. functions and features 
+      1. contain blocks that will store the records
+      2. provide information in a chronologically ordered manner
+      3. consensus mechanism that will be used when information is trying to be added
+      4. generate sha-256 hashes
+      5. link blocks via previous_hash
+      6. validate entire chain
+      7. detect tampering 
+      8. block, blockchain, hashing, validation
+4. Storage/Database
+   1. what it is
+      1. stores data, so data can survive in event of a shutdown (could possibly be a JSON file & SQLite database)
+   2. functions and features
+      1. save blockchain ledger to disk (if that’s possible)
+      2. load blockchain at startup
+      3. store logs???
+      4. store user roles???
+      5. storage manager, database, file handler
