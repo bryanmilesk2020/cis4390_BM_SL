@@ -41,4 +41,5 @@
       2. load blockchain at startup
       3. store logs???
       4. store user roles???
+
       5. storage manager, database, file handler
