@@ -20,6 +20,8 @@
 3. data extraction component needs to be able to **1)establish a connection to a blockchain node, 2)capture data real-time as new blocks and transactions are being validated.**
 4. database management component that **can handle large volumes of data**
 5. **index engine** that can index data **based on certain features**
+6. Search API that provides the ability to **query** indexed data, and supporting many **filters and search criteria**
+7. Indexer that possibly offers **dashboards or graphical interfaces** to visualize data for users. (See if this is necessary or not when using StreamLit)
 
 ##### Data
 
