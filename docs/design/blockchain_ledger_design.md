@@ -3,9 +3,8 @@
 ##### Hash
 
 1. SHA-256
-2. hash of previous block's header
-3. created when block's contents (index, ts, transaction data, previous block hash) are finalized but before block is added to chain, and compute hashes over all the fields
-4.  
+2. created when block's contents (index, ts, transaction data, previous block hash) are finalized but before block is added to chain, and compute hashes over all the fields
+3. takes the hash of everything in the block, including the previous hash  
 
 ##### Timestamp
 
@@ -25,4 +24,10 @@
 
 ##### Data
 
+1. Details of important documents
+2. features that improve queryability: document_type, created_by, transaction_id,
+3. maybe leave out very private information such as SSNs???
+
 ##### Previous_hash
+
+1. hash of the previous block
