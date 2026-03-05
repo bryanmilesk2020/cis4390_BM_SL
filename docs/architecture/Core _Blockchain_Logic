@@ -1,0 +1,40 @@
+# System Architecture & Core Blockchain Logic
+
+This document outlines the foundational design of the CIS 4390 Business Blockchain Dashboard. It defines how data is structured, validated, and secured to ensure a tamper-proof corporate ledger.
+
+---
+
+## 1. Blockchain Data Structure
+
+The ledger is built upon two primary Python classes that handle the cryptographic chain and temporary data storage.
+
+
+* **The `Block` Class:** Represents a single, immutable batch of recorded data.
+  * `index`: The sequential position of the block in the chain.
+  * `timestamp`: The exact Unix epoch time the block was mined.
+  * `transactions`: A list of the business records stored within this block.
+  * `previous_hash`: The SHA-256 hash of the preceding block, creating the cryptographic link.
+  * `nonce`: A cryptographic number used to satisfy Proof-of-Work requirements.
+  * `hash`: The unique SHA-256 identifier generated from the block's combined attributes.
+
+* **The `Blockchain` Class:** The core controller managing the ledger state.
+  * `chain`: An append-only list containing all validated `Block` objects.
+  * `uncommitted_transactions`: A volatile queue holding new business records awaiting inclusion in the next block.
+
+---
+
+## 2. Transactional Business Records
+
+To interact with the blockchain, standard business inputs (e.g., revenue updates, audit logs) are formatted into standardized, traceable transaction objects before being queued.
+
+When a user submits data via the dashboard, the backend packages it into a standard JSON payload:
+
+```json
+{
+  "record_id": "REQ-8472",
+  "department": "Finance",
+  "action": "Update Q3 Revenue",
+  "data_payload": "$450,000",
+  "author": "bmileski",
+  "timestamp": 1715000000.0
+}
