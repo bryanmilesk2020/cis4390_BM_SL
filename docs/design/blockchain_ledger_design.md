@@ -38,9 +38,26 @@
 ##### Turn the record or event into a structured object...
 
 1. The object will contain features from the business event such as transaction_id, record_type, business_data, ts, created_by.
-2. Variable "business_data" will contain the hash of the document, document's location, time it was approved, record type, and possibly contract id and who it was approved by.
+2. Run hash of document and store it in "document_hash"
+3. Variable "business_data" will contain the hash of the document, document's location, time it was approved, record type, and possibly contract id and who it was approved by.
 
 ##### Validate block
 
 1. System should verify if the user is authorized (such as looking through the AD or list of created users). 
 2. Check if the amount being inputted for the field is the right amount (not below the minimum or above the max).
+3. Check if all required fields are filled.
+4. If it violates, if any, business rules.
+5. Once it passes all these steps, it is clear to enter the blockchain.
+
+##### One transaction per block
+
+##### Block gets hashed and added to ledger
+
+1.add business_data to block
+2. Compute hash of all fields (including previous_hash field_)
+3. append block to blockchain
+
+
+### Block validation logic
+
+
