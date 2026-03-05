@@ -31,3 +31,16 @@
 ##### Previous_hash
 
 1. hash of the previous block
+
+
+### How will a business record become a transaction?
+
+##### Turn the record or event into a structured object...
+
+1. The object will contain features from the business event such as transaction_id, record_type, business_data, ts, created_by.
+2. Variable "business_data" will contain the hash of the document, document's location, time it was approved, record type, and possibly contract id and who it was approved by.
+
+##### Validate block
+
+1. System should verify if the user is authorized (such as looking through the AD or list of created users). 
+2. Check if the amount being inputted for the field is the right amount (not below the minimum or above the max).
