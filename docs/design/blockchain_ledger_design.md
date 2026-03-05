@@ -58,6 +58,10 @@
 3. append block to blockchain
 
 
-### Block validation logic
+### Chain integrity rules
+
+1. If the hash of a document in a block is recomputed, it must equal the hash already stored in the document_hash variable located in the business data of the block.
+2. The previous_hash must be equal to the hash of all the contents in the previous block.
+3. 
 
 
