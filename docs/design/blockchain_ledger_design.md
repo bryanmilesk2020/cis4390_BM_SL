@@ -53,7 +53,7 @@
 
 ##### Block gets hashed and added to ledger
 
-1.add business_data to block
+1. add business_data to block
 2. Compute hash of all fields (including previous_hash field_)
 3. append block to blockchain
 
@@ -61,7 +61,11 @@
 ### Chain integrity rules
 
 1. If the hash of a document in a block is recomputed, it must equal the hash already stored in the document_hash variable located in the business data of the block.
-2. The previous_hash must be equal to the hash of all the contents in the previous block.
-3. 
+2. The previous_hash must be equal to the hash of all the contents in the previous block, with the exception of the genesis block.
+3. Genesis block will have a hard-coded value for the "previous_hash" field/variable of 0.
+4. Timestamp cannot be less than the timestamp of the previous block. Nor can it have a value that would be in the future at that point in time when the block is created.
+5. Business/block validation. All required fields must be filled, no negative transactions, all documents must have a document hash and all blocks must have a block hash before being appended to the chain.
+6. Corrections must be a new block since previous blocks that are already appended cannot be edited.
+7. ** Any user that is logged in as a business-owner or manager is allowed to append blocks/upload documents. Though, business-owners will approve the upload.
 
 
