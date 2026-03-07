@@ -1,7 +1,3 @@
-================================================================================
-CIS 4390: BUSINESS BLOCKCHAIN DASHBOARD - DATA MODEL & LEDGER READ PROCESS
-================================================================================
-
 ### 1. Business Record Schema 
 (Fields strictly contained within the raw business document itself)
 
