@@ -12,6 +12,10 @@ before it is hashed and embedded into a block.
 6. description: A plain-text memo or summary of the business event.
 7. authorizing_user: The employee or account that submitted the record to the dashboard.
 
+##### Gross Receipts Records
+
+1. receipt_source     //source of revenu (customer payment, invoice payment, etc)
+
 --------------------------------------------------------------------------------
 
 ### 2. Transaction Data Format 
