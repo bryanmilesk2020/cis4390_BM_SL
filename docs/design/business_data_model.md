@@ -7,12 +7,19 @@ before it is hashed and embedded into a block.
 ##### Common Business Fields for all document types
 
 1. business_id / company_name: The identifier for the entity filing the record.
-2. date_of_transaction: The real-world date the business event occurred.
+2. date_of_transaction: The real-world date the business event occurred. 
 3. amount: The financial value associated with the record (if applicable).
 4. currency: The currency used for the amount (e.g., USD).
 5. counterparty: The vendor, client, or employee involved in the transaction.
 6. description: A plain-text memo or summary of the business event.
 7. authorizing_user: The employee or account that submitted the record to the dashboard.
+8. record_id: id for the business record
+9. record_type
+10. approval_status: current approval state (pending, approved, rejected)
+11. document_hash
+12. document_storage_ref: storage location/ID of uploaded document
+13. blockchain_transaction_id: ID of blockchain transaction once finalized
+14. last_updated_ts: last time record metadata was modified
 
 ##### Gross Receipts Records
 
