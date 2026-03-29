@@ -3,22 +3,25 @@ import time
 from blocks import InvoiceBlock, ContractBlock
 from blockchain import Blockchain
 
-# --- 1. Initialize Blockchain in Session State ---
+# --- 1. Page Configuration MUST BE FIRST ---
+# Streamlit requires this to be the very first Streamlit command called
+st.set_page_config(page_title="Blockchain Tracker", page_icon="🔗")
+
+# --- 2. Initialize Blockchain in Session State ---
 # This ensures our blockchain persists across page reloads
 if "blockchain" not in st.session_state:
     st.session_state.blockchain = Blockchain()
 
-# --- 2. Page Configuration & UI Header ---
-st.set_page_config(page_title="Blockchain Tracker", page_icon="🔗")
+# --- 3. UI Header ---
 st.title("🔗 Document Tracking Blockchain")
 
-# --- 3. Sidebar for User Settings ---
+# --- 4. Sidebar for User Settings ---
 st.sidebar.header("User Settings")
 # This is the "handle" we built earlier!
 current_user = st.sidebar.text_input("Current User Handle", value="admin_user_01")
 st.sidebar.info("Any blocks created will be stamped with this user handle.")
 
-# --- 4. Main Application Tabs ---
+# --- 5. Main Application Tabs ---
 tab1, tab2, tab3 = st.tabs(["➕ Add Document", "📖 View Ledger", "🛡️ Verify Integrity"])
 
 # --- TAB 1: Add a New Block ---
