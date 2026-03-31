@@ -1,0 +1,2 @@
+3/30/26 - Circular Import Error between app.py, blockchain.py, and blocks.py
+  resolved by combining blockchain and block files.
