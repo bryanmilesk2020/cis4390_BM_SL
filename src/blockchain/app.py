@@ -1,12 +1,13 @@
 import streamlit as st
 import time
-# Import everything needed from your single blockchain file
-from blockchain import Blockchain, InvoiceBlock, ContractBlock
+from blockchain import Blockchain, Transaction
 
 st.set_page_config(page_title="Blockchain Tracker", page_icon="🔗", layout="centered")
 
 if "blockchain" not in st.session_state:
     st.session_state.blockchain = Blockchain()
+
+bc = st.session_state.blockchain # shorthand reference
 
 st.title("🔗 Document Tracking Blockchain")
 st.markdown("A private, immutable ledger for verifying business documents.")
@@ -14,21 +15,17 @@ st.markdown("A private, immutable ledger for verifying business documents.")
 with st.sidebar:
     st.header("⚙️ Node Configuration")
     current_user = st.text_input("Current User Handle", value="admin_user_01")
-    
     st.divider()
-    
-    st.write("### About This Network")
-    st.info(
-        "This is a permissioned blockchain tracking "
-        "business documents (Invoices & Contracts). Every document "
-        "is cryptographically hashed to ensure immutability and provenance."
-    )
-    st.success("Network Status: Online 🟢")
+    st.metric("Pending Transactions", len(bc.pending_transactions))
+    st.metric("Total Blocks", len(bc.chain))
 
-tab1, tab2, tab3 = st.tabs(["➕ Add Document", "📖 View Ledger", "🛡️ Verify Integrity"])
+tab1, tab2, tab3 = st.tabs(["📝 Process Records", "📖 View Ledger", "🛡️ Verify Integrity"])
 
+# --- TAB 1: Add Records & Mint ---
 with tab1:
-    st.header("Mint a New Document Block")
+    st.header("1. Submit Business Record")
+    st.write("Submit documents to the network. They will wait in the mempool until a block is minted.")
+    
     doc_type = st.selectbox("Select Document Type", ["Invoice", "Contract"])
     
     with st.form("add_doc_form", clear_on_submit=True):
@@ -36,78 +33,68 @@ with tab1:
         
         if doc_type == "Invoice":
             with col1:
-                inv_num = st.text_input("Invoice Number (e.g., INV-001)")
+                doc_id = st.text_input("Invoice Number (e.g., INV-001)")
             with col2:
                 amt = st.number_input("Amount ($)", min_value=0.0, format="%.2f")
+                details = {"amount": amt}
         else:
             with col1:
-                contract_id = st.text_input("Contract ID (e.g., CTR-999)")
+                doc_id = st.text_input("Contract ID (e.g., CTR-999)")
             with col2:
                 parties = st.text_input("Parties Involved (e.g., Corp A, Corp B)")
+                details = {"parties": parties}
             
-        submitted = st.form_submit_button("Mint Block", use_container_width=True)
+        submitted = st.form_submit_button("Submit Transaction", use_container_width=True)
         
         if submitted:
-            chain_length = len(st.session_state.blockchain.chain)
+            new_tx = Transaction(doc_type, doc_id, details, current_user)
+            success, msg = bc.add_transaction(new_tx)
             
-            if doc_type == "Invoice":
-                new_block = InvoiceBlock(
-                    index=chain_length,
-                    transactions=[], 
-                    timestamp=time.time(),
-                    previous_hash="", 
-                    creator_handle=current_user,
-                    invoice_number=inv_num,
-                    amount=amt
-                )
-            elif doc_type == "Contract":
-                new_block = ContractBlock(
-                    index=chain_length,
-                    transactions=[],
-                    timestamp=time.time(),
-                    previous_hash="",
-                    creator_handle=current_user,
-                    contract_id=contract_id,
-                    parties_involved=parties
-                )
-                
-            st.session_state.blockchain.add_block(new_block)
-            st.toast(f"{doc_type} Block #{chain_length} successfully minted!", icon="✅")
+            if success:
+                st.success(msg)
+            else:
+                st.error(f"🚨 {msg}")
 
+    st.divider()
+    
+    st.header("2. Pending Transaction Pool")
+    if bc.pending_transactions:
+        st.json(bc.pending_transactions)
+        if st.button("🔨 Mint Block (Process Pool)", type="primary", use_container_width=True):
+            success, msg = bc.mint_pending_transactions(current_user)
+            if success:
+                st.success(msg)
+                st.rerun() # Refresh the page to clear the pool visually
+    else:
+        st.info("The transaction pool is currently empty.")
+
+# --- TAB 2: View the Blockchain ---
 with tab2:
     st.header("Immutable Blockchain Ledger")
     
-    total_blocks = len(st.session_state.blockchain.chain)
-    latest_type = st.session_state.blockchain.get_latest_block().document_type
-    
-    m1, m2, m3 = st.columns(3)
-    m1.metric(label="Total Blocks", value=total_blocks)
-    m2.metric(label="Latest Minted", value=latest_type)
-    m3.metric(label="Tamper Status", value="Secure 🔒")
-    
-    st.divider() 
-    
-    for block in reversed(st.session_state.blockchain.chain):
-        with st.expander(f"📦 Block #{block.index} | Type: {block.document_type} | By: {block.creator_handle}"):
+    for block in reversed(bc.chain):
+        tx_count = len(block.transactions)
+        
+        with st.expander(f"📦 Block #{block.index} | Records: {tx_count} | Minted By: {block.creator_handle}"):
             st.write(f"**Timestamp:** {time.ctime(block.timestamp)}")
             st.write(f"**Block Hash:** `{block.hash}`")
             st.write(f"**Previous Hash:** `{block.previous_hash}`")
             
             if block.index > 0: 
-                st.write("**Business Data:**")
-                st.json(block.business_data)
+                st.write("**Stored Transactions:**")
+                st.json(block.transactions)
 
+# --- TAB 3: Validate the Chain ---
 with tab3:
     st.header("System Health & Security")
-    st.write("Run a cryptographic check on the entire chain to ensure no data has been tampered with.")
     
     if st.button("Validate Blockchain", use_container_width=True):
         with st.spinner('Running cryptographic hash verification...'):
             time.sleep(1)
-            is_valid = st.session_state.blockchain.is_chain_valid()
+            is_valid = bc.is_chain_valid()
             
         if is_valid:
-            st.success("🛡️ Cryptographic Validation Passed: The blockchain is valid and secure!")
+            st.success("🛡️ Cryptographic Validation Passed: The blockchain is secure!")
             st.balloons()
         else:
-            st.error("🚨 CRITICAL WARNING: Blockchain integrity compromised! Hashes do not match.")
+            st.error("🚨 CRITICAL WARNING: Blockchain integrity compromised!")
