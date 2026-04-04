@@ -11,7 +11,7 @@ class Transaction:
         self.details = details
         self.sender = sender
         self.timestamp = time.time()
-        # attachment: {"filename": str, "data": base64_str, "size": int}
+        # attachment: {"filename", "data" (b64), "size", "mime_type", "sha256"}
         self.attachment = attachment
 
     def to_dict(self):
@@ -35,7 +35,7 @@ class Block:
         self.hash = self.compute_hash()
 
     def compute_hash(self):
-        # Exclude attachment binary data from hash to keep it deterministic & fast
+        # Include the file SHA-256 (not raw bytes) so integrity is part of the block hash
         tx_for_hash = []
         for tx in self.transactions:
             tx_copy = dict(tx)
@@ -43,6 +43,7 @@ class Block:
                 tx_copy["attachment"] = {
                     "filename": tx_copy["attachment"].get("filename"),
                     "size": tx_copy["attachment"].get("size"),
+                    "sha256": tx_copy["attachment"].get("sha256"),
                 }
             tx_for_hash.append(tx_copy)
 
@@ -81,17 +82,14 @@ class Blockchain:
     def validate_transaction(self, tx: Transaction):
         if not tx.doc_id or not str(tx.doc_id).strip():
             return False, "Validation Failed: Document ID cannot be empty."
-
         if tx.doc_type == "Invoice":
             amount = tx.details.get("amount", 0)
             if float(amount) <= 0:
                 return False, "Validation Failed: Invoice amount must be greater than $0.00."
-
         elif tx.doc_type == "Contract":
             parties = tx.details.get("parties", "")
             if len(parties.split(",")) < 2:
                 return False, "Validation Failed: Contracts require at least 2 parties (separated by a comma)."
-
         return True, "Valid"
 
     def add_transaction(self, transaction: Transaction):
@@ -99,13 +97,11 @@ class Blockchain:
         if is_valid:
             self.pending_transactions.append(transaction.to_dict())
             return True, "Transaction securely added to the pending pool."
-        else:
-            return False, message
+        return False, message
 
     def mint_pending_transactions(self, creator_handle):
-        if len(self.pending_transactions) == 0:
+        if not self.pending_transactions:
             return False, "No pending transactions to mint."
-
         new_block = Block(
             index=len(self.chain),
             transactions=self.pending_transactions,
@@ -115,53 +111,70 @@ class Blockchain:
         )
         self.chain.append(new_block)
         self.pending_transactions = []
-        return True, f"Block #{new_block.index} successfully minted with {len(new_block.transactions)} records."
+        return True, f"Block #{new_block.index} minted with {len(new_block.transactions)} records."
 
     def is_chain_valid(self):
         for i in range(1, len(self.chain)):
-            current_block = self.chain[i]
-            previous_block = self.chain[i - 1]
-            if current_block.hash != current_block.compute_hash():
+            cur = self.chain[i]
+            prev = self.chain[i - 1]
+            if cur.hash != cur.compute_hash():
                 return False
-            if current_block.previous_hash != previous_block.hash:
+            if cur.previous_hash != prev.hash:
                 return False
         return True
 
-    # ── Helpers for new features ──────────────────────────────────────────────
+    # ── Query helpers ─────────────────────────────────────────────────────────
 
     def all_transactions(self):
-        """Return every committed transaction across all blocks (flat list)."""
         txs = []
-        for block in self.chain[1:]:  # skip genesis
+        for block in self.chain[1:]:
             for tx in block.transactions:
                 txs.append({**tx, "_block_index": block.index, "_block_hash": block.hash})
         return txs
 
     def search_transactions(self, query: str = "", doc_type: str = "All"):
-        """Filter committed transactions by free-text query and/or doc type."""
         query = query.lower().strip()
         results = []
         for tx in self.all_transactions():
             if doc_type != "All" and tx.get("doc_type") != doc_type:
                 continue
-            if query:
-                haystack = json.dumps(tx).lower()
-                if query not in haystack:
-                    continue
+            if query and query not in json.dumps(tx).lower():
+                continue
             results.append(tx)
         return results
 
     def stats(self):
-        """Return aggregate metrics for the dashboard."""
         all_tx = self.all_transactions()
-        invoices = [t for t in all_tx if t["doc_type"] == "Invoice"]
+        invoices  = [t for t in all_tx if t["doc_type"] == "Invoice"]
         contracts = [t for t in all_tx if t["doc_type"] == "Contract"]
-        total_value = sum(float(t["details"].get("amount", 0)) for t in invoices)
         return {
-            "total_blocks": len(self.chain),
+            "total_blocks":       len(self.chain),
             "total_transactions": len(all_tx),
-            "total_invoices": len(invoices),
-            "total_contracts": len(contracts),
-            "total_invoice_value": total_value,
-            "pending": len(self.pending_transactions),
+            "total_invoices":     len(invoices),
+            "total_contracts":    len(contracts),
+            "total_invoice_value": sum(float(t["details"].get("amount", 0)) for t in invoices),
+            "pending":            len(self.pending_transactions),
+            "with_attachments":   sum(1 for t in all_tx if t.get("attachment")),
         }
+
+    # ── File integrity ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def hash_file(file_bytes: bytes) -> str:
+        """SHA-256 hex digest of raw file bytes."""
+        return hashlib.sha256(file_bytes).hexdigest()
+
+    @staticmethod
+    def verify_attachment(attachment: dict) -> tuple:
+        """Re-hash stored bytes and compare against recorded SHA-256."""
+        stored = attachment.get("sha256")
+        if not stored:
+            return False, "No integrity hash on record — cannot verify."
+        try:
+            raw    = base64.b64decode(attachment["data"])
+            actual = hashlib.sha256(raw).hexdigest()
+            if actual == stored:
+                return True, actual
+            return False, f"MISMATCH\nStored : {stored}\nActual : {actual}"
+        except Exception as e:
+            return False, f"Verification error: {e}"
