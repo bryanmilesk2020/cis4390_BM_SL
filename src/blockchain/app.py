@@ -7,364 +7,624 @@ import base64
 from blockchain import Blockchain, Transaction
 from auth import authenticate, ROLE_PERMISSIONS
 
-# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="LedgerCore — Document Chain",
-    page_icon="🔗",
+    page_title="LedgerCore v2 · Document Chain",
+    page_icon="⬡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── Full design system (login + app) ─────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# DESIGN SYSTEM
+# Aesthetic: Palantir / Chainalysis / CrowdStrike — dense, terminal-adjacent,
+# zero decoration, every pixel earns its place. Neutral near-black base with
+# a single cold cyan accent (#00d4ff) and amber alert states.
+# Fonts: IBM Plex Mono (data / IDs) + IBM Plex Sans (UI copy)
+# ═══════════════════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 
-*, *::before, *::after { box-sizing: border-box; }
-html, body, [class*="css"] { font-family: 'DM Sans', sans-serif; }
-
-.stApp { background: #070d1a; }
-.main .block-container { padding: 2rem 2.5rem 3rem 2.5rem; max-width: 1400px; }
-
-/* ── LOGIN PAGE ── */
-.login-wrap {
-    min-height: 85vh;
-    display: flex; align-items: center; justify-content: center;
-}
-.login-card {
-    width: 100%; max-width: 420px;
-    background: #0b1220;
-    border: 1px solid #1a2744;
-    border-radius: 18px;
-    padding: 2.5rem 2.5rem 2rem 2.5rem;
-    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-}
-.login-logo {
-    display: flex; align-items: center; gap: 0.9rem;
-    margin-bottom: 2rem;
-}
-.login-logo .logo-icon {
-    width: 44px; height: 44px;
-    background: linear-gradient(135deg, #2563eb, #0ea5e9);
-    border-radius: 12px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.3rem;
-}
-.login-logo .logo-text .logo-name {
-    font-size: 1.25rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.02em;
-}
-.login-logo .logo-text .logo-sub {
-    font-size: 0.7rem; color: #4b6a9b; text-transform: uppercase;
-    letter-spacing: 0.1em; font-weight: 500; margin-top: 0.1rem;
-}
-.login-title  { font-size: 1rem; font-weight: 600; color: #e2e8f0; margin-bottom: 0.3rem; }
-.login-sub    { font-size: 0.82rem; color: #4b6a9b; margin-bottom: 1.75rem; }
-
-.login-divider {
-    height: 1px; background: #1a2744; margin: 1.5rem 0;
+/* ── tokens ── */
+:root {
+  --bg0:     #080b10;
+  --bg1:     #0d1117;
+  --bg2:     #111820;
+  --bg3:     #17202e;
+  --border:  #1c2b3a;
+  --border2: #243447;
+  --text0:   #e8edf3;
+  --text1:   #8fa3b8;
+  --text2:   #4d6478;
+  --text3:   #2d3f52;
+  --cyan:    #00d4ff;
+  --cyan-dim:#004d5e;
+  --cyan-bg: #001a22;
+  --green:   #00e676;
+  --green-bg:#001a0a;
+  --amber:   #ffab00;
+  --amber-bg:#1a1000;
+  --red:     #ff4444;
+  --red-bg:  #1a0505;
+  --purple:  #9c6bff;
+  --mono:    'IBM Plex Mono', monospace;
+  --sans:    'IBM Plex Sans', sans-serif;
 }
 
-.role-hint {
-    background: #060c18;
-    border: 1px solid #1a2744;
-    border-radius: 10px;
-    padding: 1rem 1.1rem;
-    margin-top: 1.25rem;
+/* ── base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, [class*="css"], .stApp { font-family: var(--sans); background: var(--bg0); color: var(--text0); }
+.main .block-container { padding: 0 2rem 3rem 2rem; max-width: 1440px; }
+
+/* ── scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg1); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ══════════════════════════════════════════════════
+   LOGIN
+══════════════════════════════════════════════════ */
+.lc-login-stage {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 480px 1fr;
+    grid-template-rows: 1fr auto 1fr;
+    align-items: center;
 }
-.role-hint .rh-title {
-    font-size: 0.65rem; color: #3b5280; text-transform: uppercase;
-    letter-spacing: 0.09em; font-weight: 600; margin-bottom: 0.65rem;
+.lc-login-panel {
+    grid-column: 2;
+    grid-row: 2;
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--cyan);
 }
-.role-row {
+.lc-login-header {
+    padding: 2rem 2rem 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+}
+.lc-login-wordmark {
+    display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 1.5rem;
+}
+.lc-login-wordmark .wm-name {
+    font-family: var(--mono); font-size: 1rem; font-weight: 600;
+    color: var(--text0); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.lc-login-wordmark .wm-ver {
+    font-family: var(--mono); font-size: 0.65rem; color: var(--cyan);
+    letter-spacing: 0.06em;
+}
+.lc-login-heading { font-size: 0.8rem; font-weight: 600; color: var(--text1); text-transform: uppercase; letter-spacing: 0.1em; }
+.lc-login-body { padding: 1.75rem 2rem; }
+.lc-login-footer {
+    padding: 1.25rem 2rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg0);
+}
+.lc-login-footer-label {
+    font-family: var(--mono); font-size: 0.62rem; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem;
+}
+.lc-cred-row {
     display: flex; align-items: center; justify-content: space-between;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--bg2);
+    font-family: var(--mono); font-size: 0.72rem;
+}
+.lc-cred-row:last-child { border-bottom: none; }
+.lc-cred-id   { color: var(--text0); }
+.lc-cred-pass { color: var(--text2); margin-left: 0.5rem; }
+.lc-role-chip {
+    font-size: 0.6rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; padding: 0.1rem 0.5rem;
+    border: 1px solid; line-height: 1.6;
+}
+.chip-admin   { color: var(--cyan);   border-color: var(--cyan-dim);   background: var(--cyan-bg); }
+.chip-auditor { color: var(--purple); border-color: #3d2a66;           background: #100a1f; }
+.chip-viewer  { color: var(--text1);  border-color: var(--border2);    background: var(--bg2); }
+
+/* ══════════════════════════════════════════════════
+   TOPBAR
+══════════════════════════════════════════════════ */
+.lc-topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg1);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 2rem;
+    height: 52px;
+    gap: 2rem;
+    margin: 0 -2rem 1.75rem -2rem;
+}
+.lc-topbar-brand {
+    display: flex; align-items: baseline; gap: 0.45rem;
+    flex-shrink: 0;
+}
+.lc-topbar-brand .tb-name {
+    font-family: var(--mono); font-size: 0.78rem; font-weight: 600;
+    color: var(--text0); letter-spacing: 0.12em; text-transform: uppercase;
+}
+.lc-topbar-brand .tb-ver {
+    font-family: var(--mono); font-size: 0.58rem; color: var(--cyan); letter-spacing: 0.06em;
+}
+.lc-topbar-sep { width: 1px; height: 24px; background: var(--border); flex-shrink: 0; }
+.lc-topbar-route {
+    font-family: var(--mono); font-size: 0.68rem; color: var(--text2);
+    letter-spacing: 0.06em; text-transform: uppercase;
+}
+.lc-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 1.25rem; }
+.lc-node-indicator {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-family: var(--mono); font-size: 0.62rem; color: var(--text2);
+}
+.lc-node-indicator .ni-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 5px var(--green);
+    animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.lc-session-info {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--border);
+    font-family: var(--mono); font-size: 0.65rem; color: var(--text1);
+}
+.lc-session-info .si-user { color: var(--text0); font-weight: 500; }
+.lc-session-info .si-sep  { color: var(--text3); }
+
+/* ══════════════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════════════ */
+[data-testid="stSidebar"] {
+    background: var(--bg1) !important;
+    border-right: 1px solid var(--border) !important;
+    width: 220px !important;
+}
+[data-testid="stSidebar"] .block-container { padding: 0 !important; }
+[data-testid="stSidebar"] > div { padding: 0 !important; }
+
+.lc-sidebar-inner { padding: 1.25rem 1rem; }
+
+.lc-sidebar-section {
+    font-family: var(--mono); font-size: 0.58rem; font-weight: 600;
+    color: var(--text3); text-transform: uppercase; letter-spacing: 0.14em;
+    padding: 0.5rem 0 0.4rem 0;
+    margin-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+.lc-sidebar-section:first-child { border-top: none; margin-top: 0; }
+
+.lc-nav-item {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.8rem; color: var(--text1);
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: color 0.1s, border-color 0.1s;
+    margin-bottom: 0.1rem;
+}
+.lc-nav-item.active { color: var(--cyan); border-left-color: var(--cyan); background: var(--cyan-bg); }
+.lc-nav-item.locked { color: var(--text3); cursor: not-allowed; }
+.lc-nav-item .ni-icon { font-size: 0.75rem; width: 14px; text-align: center; }
+.lc-nav-item .ni-lock { margin-left: auto; font-size: 0.6rem; color: var(--text3); }
+
+.lc-user-block {
+    padding: 0.75rem;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    margin-bottom: 0.75rem;
+}
+.lc-user-block .ub-handle { font-family: var(--mono); font-size: 0.72rem; color: var(--text0); font-weight: 500; }
+.lc-user-block .ub-role   { font-size: 0.68rem; color: var(--text2); margin-top: 0.2rem; }
+
+.lc-stat-line {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--bg2);
+    font-size: 0.72rem;
+}
+.lc-stat-line:last-child { border-bottom: none; }
+.lc-stat-line .sl-label { color: var(--text2); }
+.lc-stat-line .sl-value { font-family: var(--mono); color: var(--text0); font-size: 0.7rem; }
+
+/* ══════════════════════════════════════════════════
+   KPI STRIP
+══════════════════════════════════════════════════ */
+.lc-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    border: 1px solid var(--border);
+    margin-bottom: 1.75rem;
+}
+.lc-kpi-cell {
+    padding: 1rem 1.25rem;
+    border-right: 1px solid var(--border);
+    position: relative;
+}
+.lc-kpi-cell:last-child { border-right: none; }
+.lc-kpi-cell::after {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: var(--cyan);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.lc-kpi-cell:hover::after { opacity: 1; }
+.lc-kpi-label {
+    font-family: var(--mono); font-size: 0.58rem; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.6rem;
+}
+.lc-kpi-value {
+    font-family: var(--mono); font-size: 1.65rem; font-weight: 600;
+    color: var(--text0); letter-spacing: -0.02em; line-height: 1;
+}
+.lc-kpi-value.dim { font-size: 1.2rem; }
+.lc-kpi-sub {
+    font-size: 0.65rem; color: var(--text2); margin-top: 0.3rem;
+}
+
+/* ══════════════════════════════════════════════════
+   SECTION HEADER
+══════════════════════════════════════════════════ */
+.lc-sh {
+    display: flex; align-items: center; gap: 0.75rem;
+    margin: 1.5rem 0 1rem 0;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid var(--border);
+}
+.lc-sh-label {
+    font-family: var(--mono); font-size: 0.65rem; font-weight: 600;
+    color: var(--text2); text-transform: uppercase; letter-spacing: 0.12em;
+    white-space: nowrap;
+}
+.lc-sh-count {
+    font-family: var(--mono); font-size: 0.6rem; color: var(--cyan);
+    background: var(--cyan-bg); border: 1px solid var(--cyan-dim);
+    padding: 0 0.4rem; line-height: 1.7;
+}
+
+/* ══════════════════════════════════════════════════
+   DATA TABLE / TX LIST
+══════════════════════════════════════════════════ */
+.lc-tx-table { width: 100%; border-collapse: collapse; }
+.lc-tx-table th {
+    font-family: var(--mono); font-size: 0.58rem; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 500;
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
+    text-align: left; background: var(--bg1); white-space: nowrap;
+}
+.lc-tx-table td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid var(--bg2);
+    font-size: 0.78rem; color: var(--text1);
+    vertical-align: middle;
+}
+.lc-tx-table tr:hover td { background: var(--bg2); color: var(--text0); }
+.lc-tx-table td.mono { font-family: var(--mono); font-size: 0.72rem; }
+.lc-tx-table td.bright { color: var(--text0); font-weight: 500; }
+
+.lc-type-pill {
+    font-family: var(--mono); font-size: 0.58rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 0.15rem 0.5rem; border: 1px solid; line-height: 1.6;
+    white-space: nowrap; display: inline-block;
+}
+.pill-invoice  { color: var(--green);  border-color: #00602d; background: var(--green-bg); }
+.pill-contract { color: var(--purple); border-color: #3d2a66; background: #100a1f; }
+.pill-att      { color: var(--cyan);   border-color: var(--cyan-dim); background: var(--cyan-bg); }
+
+/* ══════════════════════════════════════════════════
+   BLOCK CARDS
+══════════════════════════════════════════════════ */
+.lc-block-card {
+    border: 1px solid var(--border);
+    background: var(--bg1);
+    margin-bottom: 0.5rem;
+    transition: border-color 0.15s;
+}
+.lc-block-card:hover { border-color: var(--border2); }
+.lc-block-header {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.7rem 1rem;
+    background: var(--bg1);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 0.7rem;
+}
+.lc-block-index {
+    color: var(--cyan); font-weight: 600; font-size: 0.75rem; flex-shrink: 0;
+}
+.lc-block-hash {
+    color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+}
+.lc-block-meta { color: var(--text2); flex-shrink: 0; margin-left: auto; }
+.lc-block-body { padding: 0.75rem 1rem; }
+
+/* ══════════════════════════════════════════════════
+   HASH DISPLAY
+══════════════════════════════════════════════════ */
+.lc-hash-block {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    padding: 0.6rem 0.9rem;
+    margin: 0.35rem 0;
+    font-family: var(--mono); font-size: 0.66rem;
+    word-break: break-all; line-height: 1.7;
+}
+.lc-hash-block .hb-key {
+    color: var(--text3); font-size: 0.58rem; text-transform: uppercase;
+    letter-spacing: 0.1em; display: block; margin-bottom: 0.2rem;
+}
+.lc-hash-block .hb-val { color: var(--cyan); }
+.lc-hash-block .hb-prev{ color: var(--text1); }
+
+/* ══════════════════════════════════════════════════
+   FILE PREVIEW
+══════════════════════════════════════════════════ */
+.lc-file-card {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    display: flex; align-items: flex-start; gap: 1rem; margin: 0.75rem 0;
+}
+.lc-file-card .fc-icon  { font-size: 1.6rem; flex-shrink: 0; }
+.lc-file-card .fc-body  { flex: 1; min-width: 0; }
+.lc-file-card .fc-name  { font-size: 0.82rem; font-weight: 600; color: var(--text0); word-break: break-all; }
+.lc-file-card .fc-meta  { font-family: var(--mono); font-size: 0.65rem; color: var(--text2); margin-top: 0.25rem; }
+.lc-file-card .fc-hlabel{ font-family: var(--mono); font-size: 0.56rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0.6rem; display: block; }
+.lc-file-card .fc-hash  { font-family: var(--mono); font-size: 0.63rem; color: var(--cyan); word-break: break-all; margin-top: 0.15rem; }
+
+/* ══════════════════════════════════════════════════
+   ACCESS DENIED
+══════════════════════════════════════════════════ */
+.lc-denied {
+    border: 1px solid var(--border);
+    background: var(--bg1);
+    padding: 3.5rem 2rem;
+    text-align: center;
+}
+.lc-denied-code {
+    font-family: var(--mono); font-size: 0.62rem; color: var(--red);
+    text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 1rem;
+}
+.lc-denied h3 { font-size: 0.95rem; font-weight: 600; color: var(--text0); margin-bottom: 0.5rem; }
+.lc-denied p  { font-size: 0.8rem; color: var(--text2); }
+.lc-denied-role {
+    display: inline-block; margin-top: 1.25rem;
+    font-family: var(--mono); font-size: 0.65rem;
+    color: var(--text3); background: var(--bg2);
+    border: 1px solid var(--border); padding: 0.3rem 0.75rem;
+}
+
+/* ══════════════════════════════════════════════════
+   INTEGRITY STATES
+══════════════════════════════════════════════════ */
+.lc-ok   { background: var(--green-bg); border: 1px solid #00602d; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.72rem; color: var(--green); }
+.lc-fail { background: var(--red-bg);   border: 1px solid #600000; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.72rem; color: var(--red);   }
+.lc-ok .ih, .lc-fail .ih { font-size: 0.62rem; opacity: 0.7; margin-top: 0.4rem; word-break: break-all; }
+
+/* ══════════════════════════════════════════════════
+   FORM ELEMENTS
+══════════════════════════════════════════════════ */
+.lc-field-group { margin-bottom: 1.1rem; }
+.lc-field-group .lc-label {
+    font-family: var(--mono); font-size: 0.6rem; color: var(--text2);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    display: block; margin-bottom: 0.4rem;
+}
+.lc-panel {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+}
+.lc-panel-title {
+    font-family: var(--mono); font-size: 0.6rem; color: var(--text3);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    padding-bottom: 0.75rem; margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+/* ══════════════════════════════════════════════════
+   MEMPOOL
+══════════════════════════════════════════════════ */
+.lc-pool-row {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--amber);
+    margin-bottom: 0.35rem;
+    font-size: 0.75rem;
+}
+.lc-pool-row .pr-id { font-family: var(--mono); color: var(--text0); font-weight: 500; }
+.lc-pool-row .pr-sender { color: var(--text2); font-size: 0.68rem; margin-left: auto; }
+
+.lc-empty {
+    padding: 2.5rem 1.5rem; text-align: center;
+    border: 1px dashed var(--border); background: var(--bg0);
+    font-family: var(--mono); font-size: 0.7rem; color: var(--text3);
+    letter-spacing: 0.06em;
+}
+
+/* ══════════════════════════════════════════════════
+   SEARCH TOOLBAR
+══════════════════════════════════════════════════ */
+.lc-toolbar {
+    display: flex; align-items: center; gap: 0;
+    border: 1px solid var(--border);
+    background: var(--bg1);
+    margin-bottom: 1rem;
+}
+.lc-toolbar-item {
+    padding: 0 1rem;
+    border-right: 1px solid var(--border);
+    height: 38px; display: flex; align-items: center;
+    font-family: var(--mono); font-size: 0.68rem; color: var(--text2);
+}
+.lc-toolbar-item:last-child { border-right: none; margin-left: auto; }
+
+/* ══════════════════════════════════════════════════
+   SECURITY PAGE
+══════════════════════════════════════════════════ */
+.lc-verify-box {
+    border: 1px solid var(--border);
+    background: var(--bg1);
+    padding: 2rem;
+}
+.lc-verify-box .vb-title {
+    font-family: var(--mono); font-size: 0.78rem; font-weight: 600;
+    color: var(--text0); text-transform: uppercase; letter-spacing: 0.1em;
     margin-bottom: 0.5rem;
 }
-.role-row:last-child { margin-bottom: 0; }
-.role-row .rr-creds { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: #64748b; }
-.role-row .rr-creds strong { color: #94a3b8; }
-.role-badge {
-    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.07em; padding: 0.15rem 0.55rem; border-radius: 5px;
-}
-
-/* ── SIDEBAR ── */
-[data-testid="stSidebar"] {
-    background: #0b1220 !important;
-    border-right: 1px solid #1a2744;
-}
-[data-testid="stSidebar"] .block-container { padding: 1.5rem 1.2rem; }
-
-.sidebar-brand {
-    display: flex; align-items: center; gap: 0.75rem;
-    padding: 0.5rem 0 1.5rem 0;
-    border-bottom: 1px solid #1a2744;
+.lc-verify-box .vb-desc {
+    font-size: 0.8rem; color: var(--text2); line-height: 1.7;
     margin-bottom: 1.5rem;
 }
-.sidebar-brand .brand-icon {
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, #2563eb, #0ea5e9);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem;
-}
-.sidebar-brand .brand-name { font-weight: 700; font-size: 1rem; color: #f1f5f9; letter-spacing: -0.01em; }
-.sidebar-brand .brand-sub  { font-size: 0.7rem; color: #4b6a9b; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; }
+.lc-chain-ok   { display:flex;align-items:center;gap:0.75rem;padding:1rem 1.25rem;background:var(--green-bg);border:1px solid #00602d;font-family:var(--mono);font-size:0.75rem;color:var(--green);margin-top:1rem; }
+.lc-chain-fail { display:flex;align-items:center;gap:0.75rem;padding:1rem 1.25rem;background:var(--red-bg);border:1px solid #600000;font-family:var(--mono);font-size:0.75rem;color:var(--red);margin-top:1rem; }
 
-.sidebar-section-label {
-    font-size: 0.65rem; font-weight: 600; color: #3b5280;
-    text-transform: uppercase; letter-spacing: 0.1em;
-    margin: 1.5rem 0 0.6rem 0;
-}
-.status-dot {
-    display: inline-block; width: 7px; height: 7px;
-    background: #22c55e; border-radius: 50%;
-    margin-right: 0.4rem; box-shadow: 0 0 6px #22c55e;
-}
-.sidebar-stat {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 0.55rem 0.75rem;
-    background: #0f1b30; border: 1px solid #1a2744;
-    border-radius: 8px; margin-bottom: 0.5rem;
-}
-.sidebar-stat .s-label { font-size: 0.78rem; color: #64748b; font-weight: 500; }
-.sidebar-stat .s-value { font-size: 0.88rem; color: #e2e8f0; font-weight: 700; font-family: 'DM Mono', monospace; }
+/* ══════════════════════════════════════════════════
+   STREAMLIT WIDGET OVERRIDES
+══════════════════════════════════════════════════ */
+div[data-testid="metric-container"] { display: none !important; }
 
-.user-card {
-    background: #0f1b30; border: 1px solid #1e3358;
-    border-radius: 10px; padding: 0.85rem 1rem;
-    margin-bottom: 0.5rem;
+[data-testid="stTextInput"] > label,
+[data-testid="stNumberInput"] > label,
+[data-testid="stSelectbox"] > label,
+[data-testid="stFileUploader"] > label {
+    font-family: var(--mono) !important;
+    font-size: 0.6rem !important; font-weight: 500 !important;
+    color: var(--text2) !important;
+    text-transform: uppercase !important; letter-spacing: 0.1em !important;
 }
-.user-card .uc-name  { font-size: 0.88rem; font-weight: 600; color: #e2e8f0; }
-.user-card .uc-role  { font-size: 0.72rem; color: #4b6a9b; margin-top: 0.15rem; }
-.user-card .uc-badge {
-    display: inline-block; font-size: 0.63rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.07em;
-    padding: 0.15rem 0.55rem; border-radius: 5px; margin-top: 0.4rem;
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input {
+    background: var(--bg0) !important;
+    border: 1px solid var(--border2) !important;
+    border-radius: 0 !important;
+    color: var(--text0) !important;
+    font-family: var(--mono) !important; font-size: 0.78rem !important;
+    padding: 0.55rem 0.75rem !important;
 }
-
-.access-row {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.4rem 0; font-size: 0.78rem; color: #4b6a9b;
-    border-bottom: 1px solid #101e36;
-}
-.access-row:last-child { border-bottom: none; }
-.access-row .ar-icon { font-size: 0.85rem; }
-.access-row.granted { color: #64748b; }
-.access-row.denied  { color: #2d3f5a; text-decoration: line-through; }
-.access-row .ar-lock { font-size: 0.7rem; margin-left: auto; }
-
-/* ── PAGE HEADER ── */
-.page-header {
-    display: flex; align-items: flex-end; justify-content: space-between;
-    padding-bottom: 1.5rem; border-bottom: 1px solid #1a2744; margin-bottom: 2rem;
-}
-.page-header h1 { font-size: 1.65rem; font-weight: 700; color: #f1f5f9; letter-spacing: -0.03em; margin: 0; }
-.page-header p  { font-size: 0.85rem; color: #4b6a9b; margin: 0.3rem 0 0 0; }
-.header-badge {
-    background: #0f2847; border: 1px solid #1d4ed8; color: #60a5fa;
-    font-size: 0.72rem; font-weight: 600; padding: 0.3rem 0.8rem;
-    border-radius: 99px; text-transform: uppercase; letter-spacing: 0.06em;
-}
-
-/* ── ACCESS DENIED GATE ── */
-.access-denied {
-    background: #0a0f1e; border: 1px solid #1e2a40;
-    border-radius: 14px; padding: 3.5rem 2rem;
-    text-align: center; margin: 1rem 0;
-}
-.access-denied .ad-icon  { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.6; }
-.access-denied h3        { font-size: 1rem; font-weight: 600; color: #e2e8f0; margin: 0 0 0.4rem 0; }
-.access-denied p         { font-size: 0.83rem; color: #4b6a9b; margin: 0; }
-.access-denied .ad-role  {
-    display: inline-block; margin-top: 1rem;
-    font-size: 0.72rem; color: #3b5280; font-family: 'DM Mono', monospace;
-    background: #0b1220; border: 1px solid #1a2744;
-    border-radius: 6px; padding: 0.35rem 0.75rem;
-}
-
-/* ── KPI CARDS ── */
-.kpi-grid {
-    display: grid; grid-template-columns: repeat(5, 1fr);
-    gap: 1rem; margin-bottom: 2rem;
-}
-.kpi-card {
-    background: #0b1220; border: 1px solid #1a2744;
-    border-radius: 12px; padding: 1.2rem 1.3rem;
-    position: relative; overflow: hidden; transition: border-color 0.2s;
-}
-.kpi-card::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, #2563eb, #0ea5e9);
-}
-.kpi-card:hover { border-color: #2563eb; }
-.kpi-card .kpi-label { font-size: 0.72rem; color: #4b6a9b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.6rem; }
-.kpi-card .kpi-value { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; font-family: 'DM Mono', monospace; letter-spacing: -0.02em; line-height: 1; }
-.kpi-card .kpi-icon  { position: absolute; top: 1rem; right: 1rem; font-size: 1.1rem; opacity: 0.4; }
-
-/* ── SECTION HEADERS ── */
-.section-header { display: flex; align-items: center; gap: 0.6rem; margin: 0 0 1.25rem 0; }
-.section-header h2 { font-size: 1rem; font-weight: 600; color: #e2e8f0; margin: 0; letter-spacing: -0.01em; }
-.section-header .section-line { flex: 1; height: 1px; background: #1a2744; }
-
-/* ── FORM ── */
-.form-panel {
-    background: #0b1220; border: 1px solid #1a2744;
-    border-radius: 14px; padding: 1.75rem; margin-bottom: 1.5rem;
-}
-.form-panel .panel-title {
-    font-size: 0.72rem; font-weight: 600; color: #4b6a9b;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid #1a2744;
-}
-
-/* ── WIDGET OVERRIDES ── */
-div[data-testid="metric-container"] { display: none; }
-
-[data-testid="stTextInput"] > div > div > input,
-[data-testid="stNumberInput"] > div > div > input {
-    background: #0f1b30 !important; border: 1px solid #1e3358 !important;
-    border-radius: 8px !important; color: #e2e8f0 !important;
-    font-family: 'DM Sans', sans-serif !important; font-size: 0.88rem !important;
-    padding: 0.6rem 0.9rem !important;
-}
-[data-testid="stTextInput"] > div > div > input:focus,
-[data-testid="stNumberInput"] > div > div > input:focus {
-    border-color: #2563eb !important; box-shadow: 0 0 0 3px rgba(37,99,235,0.15) !important;
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus {
+    border-color: var(--cyan) !important;
+    box-shadow: 0 0 0 1px var(--cyan-dim) !important;
+    outline: none !important;
 }
 [data-testid="stSelectbox"] > div > div {
-    background: #0f1b30 !important; border: 1px solid #1e3358 !important;
-    border-radius: 8px !important; color: #e2e8f0 !important;
-}
-label[data-testid="stWidgetLabel"] p,
-.stTextInput label, .stNumberInput label, .stSelectbox label {
-    font-size: 0.78rem !important; font-weight: 600 !important;
-    color: #64748b !important; text-transform: uppercase !important; letter-spacing: 0.06em !important;
+    background: var(--bg0) !important;
+    border: 1px solid var(--border2) !important;
+    border-radius: 0 !important;
+    color: var(--text0) !important;
+    font-family: var(--mono) !important; font-size: 0.78rem !important;
 }
 
 .stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
-    color: #fff !important; border: none !important; border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important;
-    font-size: 0.88rem !important; padding: 0.65rem 1.5rem !important;
-    transition: opacity 0.15s !important; letter-spacing: 0.01em !important;
+    background: transparent !important;
+    color: var(--cyan) !important;
+    border: 1px solid var(--cyan) !important;
+    border-radius: 0 !important;
+    font-family: var(--mono) !important; font-weight: 500 !important;
+    font-size: 0.72rem !important; letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    padding: 0.55rem 1.25rem !important;
+    transition: background 0.15s !important;
 }
-.stButton > button[kind="primary"]:hover { opacity: 0.88 !important; }
+.stButton > button[kind="primary"]:hover {
+    background: var(--cyan-bg) !important;
+}
 .stButton > button[kind="secondary"] {
-    background: #0f1b30 !important; color: #94a3b8 !important;
-    border: 1px solid #1e3358 !important; border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important; font-weight: 500 !important; font-size: 0.85rem !important;
+    background: transparent !important;
+    color: var(--text1) !important;
+    border: 1px solid var(--border2) !important;
+    border-radius: 0 !important;
+    font-family: var(--mono) !important; font-size: 0.7rem !important;
+    letter-spacing: 0.06em !important; text-transform: uppercase !important;
 }
-.stButton > button[kind="secondary"]:hover { border-color: #2563eb !important; color: #e2e8f0 !important; }
-
+.stButton > button[kind="secondary"]:hover {
+    border-color: var(--cyan) !important; color: var(--cyan) !important;
+}
 .stDownloadButton > button {
-    background: #0f1b30 !important; color: #60a5fa !important;
-    border: 1px solid #1e3358 !important; border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important; font-size: 0.82rem !important;
+    background: transparent !important;
+    color: var(--text1) !important;
+    border: 1px solid var(--border2) !important;
+    border-radius: 0 !important;
+    font-family: var(--mono) !important; font-size: 0.68rem !important;
+    letter-spacing: 0.06em !important; text-transform: uppercase !important;
 }
-.stDownloadButton > button:hover { border-color: #2563eb !important; background: #172035 !important; }
+.stDownloadButton > button:hover { border-color: var(--cyan) !important; color: var(--cyan) !important; }
 
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
-    background: transparent !important; border-bottom: 1px solid #1a2744 !important; gap: 0 !important;
+    background: transparent !important;
+    border-bottom: 1px solid var(--border) !important;
+    gap: 0 !important; padding: 0 !important;
 }
 [data-testid="stTabs"] button[data-baseweb="tab"] {
-    background: transparent !important; color: #4b6a9b !important;
-    font-family: 'DM Sans', sans-serif !important; font-weight: 600 !important;
-    font-size: 0.85rem !important; border: none !important;
-    border-bottom: 2px solid transparent !important; padding: 0.75rem 1.25rem !important;
-    margin-right: 0.25rem !important; border-radius: 0 !important; transition: color 0.15s !important;
+    background: transparent !important;
+    color: var(--text2) !important;
+    font-family: var(--mono) !important; font-size: 0.65rem !important;
+    font-weight: 500 !important; text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    border: none !important; border-bottom: 1px solid transparent !important;
+    border-radius: 0 !important; padding: 0.75rem 1.5rem !important;
+    transition: color 0.1s !important;
 }
-[data-testid="stTabs"] button[data-baseweb="tab"]:hover { color: #94a3b8 !important; }
-[data-testid="stTabs"] button[aria-selected="true"][data-baseweb="tab"] { color: #60a5fa !important; border-bottom-color: #2563eb !important; }
+[data-testid="stTabs"] button[data-baseweb="tab"]:hover { color: var(--text1) !important; }
+[data-testid="stTabs"] button[aria-selected="true"][data-baseweb="tab"] {
+    color: var(--cyan) !important; border-bottom-color: var(--cyan) !important;
+}
 [data-testid="stTabs"] [data-baseweb="tab-highlight"] { display: none !important; }
 
 [data-testid="stExpander"] {
-    background: #0b1220 !important; border: 1px solid #1a2744 !important;
-    border-radius: 10px !important; margin-bottom: 0.75rem !important; overflow: hidden !important;
+    background: var(--bg1) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 0 !important;
+    margin-bottom: 0.4rem !important;
+    overflow: hidden !important;
 }
-[data-testid="stExpander"]:hover { border-color: #1e3358 !important; }
 [data-testid="stExpander"] summary {
-    background: #0b1220 !important; padding: 0.9rem 1.1rem !important;
-    font-size: 0.88rem !important; font-weight: 600 !important; color: #cbd5e1 !important;
+    background: var(--bg1) !important;
+    font-family: var(--mono) !important; font-size: 0.7rem !important;
+    color: var(--text1) !important; padding: 0.65rem 0.9rem !important;
 }
-[data-testid="stExpander"] summary:hover { background: #0f1b30 !important; }
+[data-testid="stExpander"] summary:hover { background: var(--bg2) !important; color: var(--text0) !important; }
 [data-testid="stExpander"] [data-testid="stExpanderDetails"] {
-    background: #080f1c !important; padding: 1rem 1.25rem !important; border-top: 1px solid #1a2744 !important;
+    background: var(--bg0) !important;
+    border-top: 1px solid var(--border) !important;
+    padding: 0.9rem 1rem !important;
 }
 
-[data-testid="stDataFrame"] { border: 1px solid #1a2744 !important; border-radius: 10px !important; overflow: hidden !important; }
-[data-testid="stDataFrame"] th { background: #0b1220 !important; color: #4b6a9b !important; font-size: 0.72rem !important; font-weight: 600 !important; text-transform: uppercase !important; letter-spacing: 0.06em !important; }
-[data-testid="stDataFrame"] td { color: #cbd5e1 !important; font-size: 0.83rem !important; }
-
-.stSuccess, .stError, .stInfo, .stWarning { border-radius: 8px !important; font-size: 0.86rem !important; }
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--border) !important; border-radius: 0 !important;
+}
+[data-testid="stDataFrame"] th {
+    background: var(--bg1) !important; color: var(--text3) !important;
+    font-family: var(--mono) !important; font-size: 0.6rem !important;
+    text-transform: uppercase !important; letter-spacing: 0.08em !important;
+}
+[data-testid="stDataFrame"] td {
+    font-family: var(--mono) !important; color: var(--text1) !important; font-size: 0.72rem !important;
+}
 
 [data-testid="stFileUploader"] {
-    background: #0b1220 !important; border: 1.5px dashed #1e3358 !important; border-radius: 10px !important;
+    background: var(--bg0) !important;
+    border: 1px dashed var(--border2) !important;
+    border-radius: 0 !important;
 }
-[data-testid="stFileUploader"]:hover { border-color: #2563eb !important; }
 
-hr { border-color: #1a2744 !important; margin: 1.5rem 0 !important; }
+.stSuccess > div { background: var(--green-bg) !important; border: 1px solid #00602d !important; border-radius: 0 !important; color: var(--green) !important; font-family: var(--mono) !important; font-size: 0.72rem !important; }
+.stError   > div { background: var(--red-bg)   !important; border: 1px solid #600000 !important; border-radius: 0 !important; color: var(--red)   !important; font-family: var(--mono) !important; font-size: 0.72rem !important; }
+.stWarning > div { background: var(--amber-bg) !important; border: 1px solid #604000 !important; border-radius: 0 !important; color: var(--amber) !important; font-family: var(--mono) !important; font-size: 0.72rem !important; }
+.stInfo    > div { background: var(--cyan-bg)  !important; border: 1px solid var(--cyan-dim) !important; border-radius: 0 !important; color: var(--cyan) !important; font-family: var(--mono) !important; font-size: 0.72rem !important; }
 
-/* ── MISC COMPONENTS ── */
-.hash-row {
-    background: #060c18; border: 1px solid #101e36; border-radius: 8px;
-    padding: 0.6rem 0.9rem; margin: 0.4rem 0;
-    font-family: 'DM Mono', monospace; font-size: 0.7rem; color: #4b6a9b;
-    word-break: break-all; line-height: 1.6;
-}
-.hash-row .hash-key  { color: #3b5280; text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em; }
-.hash-row .hash-val  { color: #60a5fa; }
-.hash-row .hash-prev { color: #94a3b8; }
-
-.tx-row {
-    background: #080f1c; border: 1px solid #101e36; border-radius: 8px;
-    padding: 0.75rem 1rem; margin-bottom: 0.5rem;
-    display: flex; align-items: center; gap: 1rem;
-}
-.tx-type-badge { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; padding: 0.2rem 0.55rem; border-radius: 5px; white-space: nowrap; }
-.tx-type-invoice  { background: #0c2a0c; color: #4ade80; border: 1px solid #166534; }
-.tx-type-contract { background: #1a0e2e; color: #c084fc; border: 1px solid #7e22ce; }
-.tx-doc-id { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: #e2e8f0; font-weight: 600; }
-.tx-sender { font-size: 0.75rem; color: #4b6a9b; }
-.tx-detail { font-size: 0.75rem; color: #64748b; margin-left: auto; }
-.att-pill  { background: #0c2040; border: 1px solid #1e40af; color: #60a5fa; font-size: 0.7rem; font-weight: 600; padding: 0.18rem 0.6rem; border-radius: 99px; white-space: nowrap; }
-
-.file-preview-card {
-    background: #060c18; border: 1px solid #1a2744; border-radius: 10px;
-    padding: 1rem 1.2rem; display: flex; align-items: flex-start; gap: 1rem; margin: 0.75rem 0;
-}
-.file-preview-card .fp-icon  { font-size: 2rem; line-height: 1; }
-.file-preview-card .fp-meta  { flex: 1; min-width: 0; }
-.file-preview-card .fp-name  { font-weight: 700; color: #e2e8f0; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.file-preview-card .fp-info  { color: #4b6a9b; font-size: 0.75rem; margin-top: 0.2rem; }
-.file-preview-card .fp-hlabel{ color: #3b5280; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.5rem; }
-.file-preview-card .fp-hash  { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #3b82f6; word-break: break-all; margin-top: 0.15rem; }
-
-.integrity-ok   { background:#021a0d; border:1px solid #16a34a; border-radius:8px; padding:0.75rem 1rem; color:#4ade80; font-size:0.85rem; }
-.integrity-fail { background:#1a0606; border:1px solid #dc2626; border-radius:8px; padding:0.75rem 1rem; color:#f87171; font-size:0.85rem; }
-.integrity-hash { font-family:'DM Mono',monospace; font-size:0.7rem; word-break:break-all; margin-top:0.5rem; opacity:0.75; }
-
-.pool-empty {
-    text-align: center; padding: 2.5rem 1rem;
-    background: #080f1c; border: 1px dashed #1a2744;
-    border-radius: 12px; color: #3b5280; font-size: 0.88rem;
-}
-.pool-empty .pe-icon { font-size: 2rem; margin-bottom: 0.5rem; }
-
-.verify-panel {
-    background: #060c18; border: 1px solid #1a2744;
-    border-radius: 14px; padding: 2.5rem; text-align: center;
-}
-.verify-panel h3 { font-size: 1.1rem; color: #e2e8f0; margin: 0 0 0.5rem 0; }
-.verify-panel p  { font-size: 0.85rem; color: #4b6a9b; margin: 0 0 1.5rem 0; }
-.chain-status-ok   { display:inline-flex;align-items:center;gap:0.5rem;background:#021a0d;border:1px solid #16a34a;border-radius:10px;padding:1rem 1.5rem;color:#4ade80;font-weight:600;font-size:0.95rem;margin-top:1rem; }
-.chain-status-fail { display:inline-flex;align-items:center;gap:0.5rem;background:#1a0606;border:1px solid #dc2626;border-radius:10px;padding:1rem 1.5rem;color:#f87171;font-weight:600;font-size:0.95rem;margin-top:1rem; }
+hr { border-color: var(--border) !important; margin: 1.25rem 0 !important; }
 
 #MainMenu, footer, header { visibility: hidden; }
 [data-testid="stDecoration"] { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Session state ─────────────────────────────────────────────────────────────
+# ── Session ────────────────────────────────────────────────────────────────────
 if "blockchain"    not in st.session_state: st.session_state.blockchain    = Blockchain()
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if "user"          not in st.session_state: st.session_state.user          = None
@@ -372,282 +632,303 @@ if "login_error"   not in st.session_state: st.session_state.login_error   = ""
 
 bc = st.session_state.blockchain
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def file_icon(filename):
-    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    return {"pdf":"📄","png":"🖼️","jpg":"🖼️","jpeg":"🖼️","txt":"📃","docx":"📝"}.get(ext,"📎")
+# ── Utility ────────────────────────────────────────────────────────────────────
+def file_icon(fn):
+    ext = fn.rsplit(".",1)[-1].lower() if "." in fn else ""
+    return {"pdf":"▣","png":"▣","jpg":"▣","jpeg":"▣","txt":"≡","docx":"≡"}.get(ext,"◈")
 
 def fmt_size(n):
-    if n < 1024:    return f"{n} B"
-    if n < 1048576: return f"{n/1024:.1f} KB"
-    return f"{n/1048576:.1f} MB"
+    if n < 1024:    return f"{n}B"
+    if n < 1048576: return f"{n/1024:.1f}KB"
+    return f"{n/1048576:.1f}MB"
 
-def render_preview_card(att):
+def ts(t): return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
+def ts_short(t): return time.strftime('%m/%d %H:%M', time.localtime(t))
+
+def pill(doc_type):
+    cls = "pill-invoice" if doc_type == "Invoice" else "pill-contract"
+    return f'<span class="lc-type-pill {cls}">{doc_type}</span>'
+
+def render_file_card(att):
     mime = att.get("mime_type","")
     if mime.startswith("image/"):
-        st.image(base64.b64decode(att["data"]), caption=att["filename"], width=300)
+        st.image(base64.b64decode(att["data"]), caption=att["filename"], width=260)
     st.markdown(f"""
-    <div class="file-preview-card">
-      <div class="fp-icon">{file_icon(att['filename'])}</div>
-      <div class="fp-meta">
-        <div class="fp-name">{att['filename']}</div>
-        <div class="fp-info">{fmt_size(att['size'])} &nbsp;·&nbsp; {mime or 'unknown'}</div>
-        <div class="fp-hlabel">SHA-256 Fingerprint</div>
-        <div class="fp-hash">{att.get('sha256','—')}</div>
+    <div class="lc-file-card">
+      <div class="fc-icon">{file_icon(att['filename'])}</div>
+      <div class="fc-body">
+        <div class="fc-name">{att['filename']}</div>
+        <div class="fc-meta">{fmt_size(att['size'])} · {mime or 'unknown'}</div>
+        <span class="fc-hlabel">sha-256</span>
+        <div class="fc-hash">{att.get('sha256','—')}</div>
       </div>
     </div>""", unsafe_allow_html=True)
 
-def tx_type_badge(doc_type):
-    cls = "tx-type-invoice" if doc_type == "Invoice" else "tx-type-contract"
-    return f'<span class="tx-type-badge {cls}">{doc_type}</span>'
-
-def access_denied(area="this area"):
-    role = st.session_state.user["role"] if st.session_state.user else "unknown"
+def access_denied(area="this resource"):
+    role = st.session_state.user["role"] if st.session_state.user else "—"
     st.markdown(f"""
-    <div class="access-denied">
-      <div class="ad-icon">🔒</div>
-      <h3>Access Restricted</h3>
-      <p>Your account does not have permission to access {area}.</p>
-      <div class="ad-role">role: {role}</div>
+    <div class="lc-denied">
+      <div class="lc-denied-code">ERR_ACCESS_DENIED · HTTP 403</div>
+      <h3>Insufficient Privileges</h3>
+      <p>Your session does not have permission to access {area}.<br>Contact your system administrator to request elevated access.</p>
+      <div class="lc-denied-role">session.role = "{role}"</div>
     </div>""", unsafe_allow_html=True)
 
-def can(permission):
-    """Check if logged-in user has a given permission key."""
-    return st.session_state.user and st.session_state.user.get(permission, False)
+def can(p):   return st.session_state.user and st.session_state.user.get(p, False)
+def has_tab(k): return st.session_state.user and k in st.session_state.user.get("tabs", [])
 
-def has_tab(tab_key):
-    """Check if logged-in user's role includes a tab."""
-    return st.session_state.user and tab_key in st.session_state.user.get("tabs", [])
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# LOGIN SCREEN
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# LOGIN
+# ══════════════════════════════════════════════════════════════════════════════
 if not st.session_state.authenticated:
-
-    _, center, _ = st.columns([1, 1.2, 1])
+    _, center, _ = st.columns([1, 1.1, 1])
     with center:
         st.markdown("""
-        <div style="padding-top:6vh;">
-        <div class="login-card">
-          <div class="login-logo">
-            <div class="logo-icon">🔗</div>
-            <div class="logo-text">
-              <div class="logo-name">LedgerCore</div>
-              <div class="logo-sub">Document Chain</div>
+        <div style="padding-top:8vh;">
+        <div class="lc-login-panel">
+          <div class="lc-login-header">
+            <div class="lc-login-wordmark">
+              <span class="wm-name">LedgerCore</span>
+              <span class="wm-ver">v2.0.0</span>
             </div>
+            <div class="lc-login-heading">Authentication Required</div>
           </div>
-          <div class="login-title">Sign in to your account</div>
-          <div class="login-sub">Enter your credentials to access the ledger platform.</div>
-        </div>
+          <div class="lc-login-body">
         """, unsafe_allow_html=True)
 
-        with st.form("login_form"):
-            username = st.text_input("Username", placeholder="Enter username")
-            password = st.text_input("Password", type="password", placeholder="Enter password")
-            submit   = st.form_submit_button("Sign In →", use_container_width=True, type="primary")
+        with st.form("lc_login"):
+            st.text_input("Identifier", placeholder="username", key="li_user")
+            st.text_input("Secret", type="password", placeholder="••••••••••", key="li_pass")
+            st.form_submit_button("AUTHENTICATE →", use_container_width=True, type="primary")
 
-            if submit:
-                ok, user = authenticate(username, password)
-                if ok:
-                    st.session_state.authenticated = True
-                    st.session_state.user          = user
-                    st.session_state.login_error   = ""
-                    st.rerun()
-                else:
-                    st.session_state.login_error = "Invalid username or password. Please try again."
+        if st.session_state.get("FormSubmitter:lc_login-AUTHENTICATE →"):
+            ok, user = authenticate(
+                st.session_state.get("li_user",""),
+                st.session_state.get("li_pass","")
+            )
+            if ok:
+                st.session_state.authenticated = True
+                st.session_state.user          = user
+                st.session_state.login_error   = ""
+                st.rerun()
+            else:
+                st.session_state.login_error = "AUTHENTICATION FAILED — invalid credentials"
 
         if st.session_state.login_error:
             st.error(st.session_state.login_error)
 
-        # Demo credentials hint
+        st.markdown('</div>', unsafe_allow_html=True)
+
         st.markdown("""
-        <div class="role-hint" style="margin-top:1rem;">
-          <div class="rh-title">Demo Credentials</div>
-          <div class="role-row">
-            <span class="rr-creds"><strong>admin</strong> / admin123</span>
-            <span class="role-badge" style="background:#0f2847;color:#60a5fa;border:1px solid #1d4ed8;">Admin</span>
+        <div class="lc-login-footer">
+          <div class="lc-login-footer-label">Demo Credentials</div>
+          <div class="lc-cred-row">
+            <span><span class="lc-cred-id">admin</span><span class="lc-cred-pass">/ admin123</span></span>
+            <span class="lc-role-chip chip-admin">Admin</span>
           </div>
-          <div class="role-row">
-            <span class="rr-creds"><strong>auditor</strong> / audit456</span>
-            <span class="role-badge" style="background:#1e1040;color:#c084fc;border:1px solid #7e22ce;">Auditor</span>
+          <div class="lc-cred-row">
+            <span><span class="lc-cred-id">auditor</span><span class="lc-cred-pass">/ audit456</span></span>
+            <span class="lc-role-chip chip-auditor">Auditor</span>
           </div>
-          <div class="role-row">
-            <span class="rr-creds"><strong>viewer</strong> / view789</span>
-            <span class="role-badge" style="background:#0c2535;color:#38bdf8;border:1px solid #0e7490;">Viewer</span>
+          <div class="lc-cred-row">
+            <span><span class="lc-cred-id">viewer</span><span class="lc-cred-pass">/ view789</span></span>
+            <span class="lc-role-chip chip-viewer">Viewer</span>
           </div>
         </div>
         </div></div>
         """, unsafe_allow_html=True)
+    st.stop()
 
-    st.stop()  # Don't render anything else until logged in
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# AUTHENTICATED APP
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# AUTHENTICATED
+# ══════════════════════════════════════════════════════════════════════════════
 user  = st.session_state.user
 stats = bc.stats()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("""
-    <div class="sidebar-brand">
-      <div class="brand-icon">🔗</div>
-      <div>
-        <div class="brand-name">LedgerCore</div>
-        <div class="brand-sub">Document Chain</div>
+    st.markdown(f"""
+    <div class="lc-sidebar-inner">
+      <div class="lc-sidebar-section" style="border-top:none;margin-top:0;">System</div>
+      <div class="lc-user-block">
+        <div class="ub-handle">◉ {user['username']}</div>
+        <div class="ub-role">{ROLE_PERMISSIONS[user['role']]['label']} · Private Node</div>
       </div>
-    </div>""", unsafe_allow_html=True)
+      <div class="lc-sidebar-section">Navigation</div>
+    """, unsafe_allow_html=True)
 
-    # User card
-    role_cfg = ROLE_PERMISSIONS[user["role"]]
-    st.markdown(f"""
-    <div class="user-card">
-      <div class="uc-name">👤 {user['display_name']}</div>
-      <div class="uc-role">@{user['username']}</div>
-      <span class="uc-badge" style="background:{role_cfg['badge_bg']};color:{role_cfg['badge_fg']};border:1px solid {role_cfg['color']}33;">
-        {role_cfg['label']}
-      </span>
-    </div>""", unsafe_allow_html=True)
-
-    # Access summary
-    st.markdown('<div class="sidebar-section-label">Access Level</div>', unsafe_allow_html=True)
-    access_items = [
-        ("overview",  "📊", "Overview"),
-        ("submit",    "📝", "Submit Records"),
-        ("ledger",    "📖", "View Ledger"),
-        ("security",  "🛡️", "Security"),
+    nav_items = [
+        ("overview", "▦", "Overview"),
+        ("submit",   "⊕", "Submit Record"),
+        ("ledger",   "≣", "Ledger"),
+        ("security", "⊛", "Security"),
     ]
-    access_html = ""
-    for key, icon, label in access_items:
+    nav_html = ""
+    for key, icon, label in nav_items:
         granted = key in user["tabs"]
-        cls     = "granted" if granted else "denied"
-        lock    = "" if granted else '<span class="ar-lock">🔒</span>'
-        access_html += f'<div class="access-row {cls}"><span class="ar-icon">{icon}</span>{label}{lock}</div>'
-    st.markdown(f'<div style="background:#0a0f1e;border:1px solid #1a2744;border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:1rem;">{access_html}</div>', unsafe_allow_html=True)
-
-    # Chain stats
-    st.markdown('<div class="sidebar-section-label">Chain Stats</div>', unsafe_allow_html=True)
-    for label, val in [("Blocks Minted", stats["total_blocks"]),
-                       ("Total Records", stats["total_transactions"]),
-                       ("Pending",       stats["pending"]),
-                       ("Attachments",   stats["with_attachments"])]:
-        st.markdown(f"""
-        <div class="sidebar-stat">
-          <span class="s-label">{label}</span>
-          <span class="s-value">{val}</span>
-        </div>""", unsafe_allow_html=True)
+        cls     = "active" if key == "overview" else ("lc-nav-item" if granted else "locked")
+        lock    = "" if granted else '<span class="ni-lock">🔒</span>'
+        nav_html += f'<div class="lc-nav-item {cls}"><span class="ni-icon">{icon}</span>{label}{lock}</div>'
+    st.markdown(nav_html, unsafe_allow_html=True)
 
     st.markdown(f"""
-    <div style="padding:0.75rem;background:#0f1b30;border:1px solid #1a2744;border-radius:8px;text-align:center;margin-top:0.5rem;">
-      <div style="font-size:1.3rem;font-weight:700;color:#f1f5f9;font-family:'DM Mono',monospace;">${stats['total_invoice_value']:,.2f}</div>
-      <div style="font-size:0.7rem;color:#3b5280;margin-top:0.2rem;text-transform:uppercase;letter-spacing:0.06em;">Total Invoice Volume</div>
-    </div>""", unsafe_allow_html=True)
+      <div class="lc-sidebar-section">Chain Metrics</div>
+      <div class="lc-stat-line"><span class="sl-label">Blocks</span><span class="sl-value">{stats['total_blocks']}</span></div>
+      <div class="lc-stat-line"><span class="sl-label">Records</span><span class="sl-value">{stats['total_transactions']}</span></div>
+      <div class="lc-stat-line"><span class="sl-label">Pending</span><span class="sl-value">{stats['pending']}</span></div>
+      <div class="lc-stat-line"><span class="sl-label">Attachments</span><span class="sl-value">{stats['with_attachments']}</span></div>
+      <div class="lc-stat-line"><span class="sl-label">Invoice Vol.</span><span class="sl-value">${stats['total_invoice_value']:,.0f}</span></div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Sign out
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("Sign Out", use_container_width=True):
+    if st.button("SIGN OUT", use_container_width=True):
         st.session_state.authenticated = False
         st.session_state.user          = None
         st.rerun()
 
-# ── Page header ───────────────────────────────────────────────────────────────
+# ── Topbar ─────────────────────────────────────────────────────────────────────
+role_cfg = ROLE_PERMISSIONS[user["role"]]
+chip_cls = {"admin":"chip-admin","auditor":"chip-auditor","viewer":"chip-viewer"}.get(user["role"],"chip-viewer")
 st.markdown(f"""
-<div class="page-header">
-  <div>
-    <h1>Document Tracking Ledger</h1>
-    <p>Immutable record-keeping for business documents · Private blockchain network</p>
+<div class="lc-topbar">
+  <div class="lc-topbar-brand">
+    <span class="tb-name">LedgerCore</span>
+    <span class="tb-ver">v2.0</span>
   </div>
-  <span class="header-badge">● Live</span>
+  <div class="lc-topbar-sep"></div>
+  <div class="lc-topbar-route">Document Chain · Private Network</div>
+  <div class="lc-topbar-right">
+    <div class="lc-node-indicator">
+      <div class="ni-dot"></div>
+      NODE ONLINE
+    </div>
+    <div class="lc-topbar-sep"></div>
+    <div class="lc-session-info">
+      <span class="si-user">{user['username'].upper()}</span>
+      <span class="si-sep">/</span>
+      <span class="lc-role-chip {chip_cls}">{role_cfg['label']}</span>
+      <span class="si-sep">·</span>
+      <span>{ts_short(time.time())}</span>
+    </div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Build tab list based on role ──────────────────────────────────────────────
-TAB_DEFS = [
-    ("overview",  "  Overview  "),
-    ("submit",    "  Submit Record  "),
-    ("ledger",    "  Ledger  "),
-    ("security",  "  Security  "),
-]
-# Always show all tab labels (greyed tabs are cleaner than hiding them)
-tab_labels = [label for _, label in TAB_DEFS]
-tab_keys   = [key   for key, _   in TAB_DEFS]
+# ── Tabs ───────────────────────────────────────────────────────────────────────
+tabs = st.tabs(["  OVERVIEW  ", "  SUBMIT RECORD  ", "  LEDGER  ", "  SECURITY  "])
 
-tabs = st.tabs(tab_labels)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# TAB 0 — OVERVIEW  (all roles)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 0 — OVERVIEW
+# ══════════════════════════════════════════════════════════════════════════════
 with tabs[0]:
     inv_val = f"${stats['total_invoice_value']:,.2f}"
     st.markdown(f"""
-    <div class="kpi-grid">
-      <div class="kpi-card"><div class="kpi-icon">⛓️</div><div class="kpi-label">Blocks Minted</div><div class="kpi-value">{stats['total_blocks']}</div></div>
-      <div class="kpi-card"><div class="kpi-icon">📄</div><div class="kpi-label">Total Records</div><div class="kpi-value">{stats['total_transactions']}</div></div>
-      <div class="kpi-card"><div class="kpi-icon">🧾</div><div class="kpi-label">Invoices</div><div class="kpi-value">{stats['total_invoices']}</div></div>
-      <div class="kpi-card"><div class="kpi-icon">📑</div><div class="kpi-label">Contracts</div><div class="kpi-value">{stats['total_contracts']}</div></div>
-      <div class="kpi-card"><div class="kpi-icon">💰</div><div class="kpi-label">Invoice Volume</div><div class="kpi-value" style="font-size:1.3rem;">{inv_val}</div></div>
-    </div>""", unsafe_allow_html=True)
+    <div class="lc-kpi-strip">
+      <div class="lc-kpi-cell">
+        <div class="lc-kpi-label">Blocks Minted</div>
+        <div class="lc-kpi-value">{stats['total_blocks']}</div>
+        <div class="lc-kpi-sub">chain height</div>
+      </div>
+      <div class="lc-kpi-cell">
+        <div class="lc-kpi-label">Total Records</div>
+        <div class="lc-kpi-value">{stats['total_transactions']}</div>
+        <div class="lc-kpi-sub">committed txns</div>
+      </div>
+      <div class="lc-kpi-cell">
+        <div class="lc-kpi-label">Invoices</div>
+        <div class="lc-kpi-value">{stats['total_invoices']}</div>
+        <div class="lc-kpi-sub">doc type</div>
+      </div>
+      <div class="lc-kpi-cell">
+        <div class="lc-kpi-label">Contracts</div>
+        <div class="lc-kpi-value">{stats['total_contracts']}</div>
+        <div class="lc-kpi-sub">doc type</div>
+      </div>
+      <div class="lc-kpi-cell">
+        <div class="lc-kpi-label">Invoice Volume</div>
+        <div class="lc-kpi-value dim">{inv_val}</div>
+        <div class="lc-kpi-sub">usd · committed</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     all_tx = bc.all_transactions()
     if not all_tx:
-        st.markdown('<div class="pool-empty" style="padding:3rem;"><div class="pe-icon">📊</div><div>No committed transactions yet.</div></div>', unsafe_allow_html=True)
+        st.markdown('<div class="lc-empty">// NO COMMITTED TRANSACTIONS — SUBMIT AND MINT RECORDS TO POPULATE THE LEDGER</div>', unsafe_allow_html=True)
     else:
         import pandas as pd
+
+        col_a, col_b = st.columns(2, gap="medium")
         block_counts, block_values = {}, {}
         for tx in all_tx:
-            idx = f"#{tx['_block_index']}"
+            idx = f"BLK-{tx['_block_index']:04d}"
             block_counts[idx] = block_counts.get(idx, 0) + 1
             block_values[idx] = block_values.get(idx, 0) + float(tx["details"].get("amount", 0))
 
-        col_a, col_b = st.columns(2)
         with col_a:
-            st.markdown('<div class="section-header"><h2>Transactions per Block</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
-            st.bar_chart(pd.DataFrame({"Block": list(block_counts), "Records": list(block_counts.values())}).set_index("Block"), color="#2563eb")
+            st.markdown('<div class="lc-sh"><span class="lc-sh-label">Transactions / Block</span></div>', unsafe_allow_html=True)
+            st.bar_chart(pd.DataFrame({"Block": list(block_counts), "Count": list(block_counts.values())}).set_index("Block"), color="#00d4ff", height=200)
+
         with col_b:
-            st.markdown('<div class="section-header"><h2>Invoice Value per Block</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
-            st.bar_chart(pd.DataFrame({"Block": list(block_values), "Value ($)": list(block_values.values())}).set_index("Block"), color="#0ea5e9")
+            st.markdown('<div class="lc-sh"><span class="lc-sh-label">Invoice Volume / Block (USD)</span></div>', unsafe_allow_html=True)
+            st.bar_chart(pd.DataFrame({"Block": list(block_values), "Value": list(block_values.values())}).set_index("Block"), color="#00e676", height=200)
 
-        st.markdown('<div class="section-header" style="margin-top:1.5rem;"><h2>Recent Activity</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
-        for tx in reversed(all_tx[-8:]):
-            att   = tx.get("attachment")
-            att_s = f'<span class="att-pill">📎 {att["filename"]}</span>' if att else ""
-            st.markdown(f"""
-            <div class="tx-row">
-              {tx_type_badge(tx['doc_type'])}
-              <div><div class="tx-doc-id">{tx['doc_id']}</div><div class="tx-sender">{tx['sender']} · Block #{tx['_block_index']}</div></div>
-              <div class="tx-detail">{json.dumps(tx['details'])}</div>
-              <div style="margin-left:auto;">{att_s}</div>
-              <div style="font-size:0.72rem;color:#3b5280;white-space:nowrap;">{time.strftime('%b %d %H:%M', time.localtime(tx['timestamp']))}</div>
-            </div>""", unsafe_allow_html=True)
+        # Recent tx table
+        recent = list(reversed(all_tx[-12:]))
+        st.markdown(f'<div class="lc-sh" style="margin-top:1.5rem;"><span class="lc-sh-label">Recent Transactions</span><span class="lc-sh-count">{len(recent)}</span></div>', unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — SUBMIT RECORD  (admin only)
-# ═══════════════════════════════════════════════════════════════════════════════
+        rows_html = ""
+        for tx in recent:
+            att    = tx.get("attachment")
+            att_td = f'<span class="lc-type-pill pill-att">ATT</span>' if att else "—"
+            det    = json.dumps(tx["details"])
+            rows_html += f"""
+            <tr>
+              <td class="mono">{ts_short(tx['timestamp'])}</td>
+              <td>{pill(tx['doc_type'])}</td>
+              <td class="mono bright">{tx['doc_id']}</td>
+              <td class="mono">{tx['sender']}</td>
+              <td class="mono">BLK-{tx['_block_index']:04d}</td>
+              <td class="mono" style="color:var(--text2);font-size:0.65rem;">{det}</td>
+              <td>{att_td}</td>
+            </tr>"""
+        st.markdown(f"""
+        <table class="lc-tx-table">
+          <thead><tr>
+            <th>Timestamp</th><th>Type</th><th>Document ID</th>
+            <th>Operator</th><th>Block</th><th>Details</th><th>Att</th>
+          </tr></thead>
+          <tbody>{rows_html}</tbody>
+        </table>""", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 1 — SUBMIT RECORD
+# ══════════════════════════════════════════════════════════════════════════════
 with tabs[1]:
     if not has_tab("submit"):
-        access_denied("Submit Record — Administrator access required")
+        access_denied("submit_record · write permission required")
     else:
-        left_col, right_col = st.columns([1.1, 1], gap="large")
+        left_col, right_col = st.columns([1.05, 1], gap="large")
 
         with left_col:
-            st.markdown('<div class="section-header"><h2>New Transaction</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
-            st.markdown('<div class="form-panel"><div class="panel-title">Document Details</div>', unsafe_allow_html=True)
+            st.markdown('<div class="lc-sh"><span class="lc-sh-label">New Transaction</span></div>', unsafe_allow_html=True)
+            st.markdown('<div class="lc-panel"><div class="lc-panel-title">// DOCUMENT PARAMETERS</div>', unsafe_allow_html=True)
 
-            doc_type = st.selectbox("Document Type", ["Invoice", "Contract"])
+            doc_type = st.selectbox("Doc Type", ["Invoice", "Contract"])
             if doc_type == "Invoice":
-                doc_id  = st.text_input("Invoice Number", placeholder="e.g. INV-2024-001")
+                doc_id  = st.text_input("Invoice ID", placeholder="INV-2025-001")
                 amt     = st.number_input("Amount (USD)", min_value=0.0, format="%.2f")
                 details = {"amount": amt}
             else:
-                doc_id  = st.text_input("Contract ID", placeholder="e.g. CTR-2024-099")
-                parties = st.text_input("Parties Involved", placeholder="Corp A, Corp B")
+                doc_id  = st.text_input("Contract ID", placeholder="CTR-2025-001")
+                parties = st.text_input("Counterparties", placeholder="Entity A, Entity B")
                 details = {"parties": parties}
-
             st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown('<div class="section-header" style="margin-top:1rem;"><h2>Supporting Document</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="lc-sh"><span class="lc-sh-label">File Attachment</span></div>', unsafe_allow_html=True)
             uploaded_file = st.file_uploader(
-                "Drag & drop or click to browse · PDF, PNG, JPG, TXT, DOCX",
+                "Drag file or click to browse · PDF PNG JPG TXT DOCX",
                 type=["pdf","png","jpg","jpeg","txt","docx"],
             )
             attachment_ready = None
@@ -662,160 +943,201 @@ with tabs[1]:
                 }
 
             with st.form("submit_form", clear_on_submit=True):
-                submitted = st.form_submit_button("Submit to Mempool →", use_container_width=True, type="primary")
-                if submitted:
+                go = st.form_submit_button("SUBMIT TO MEMPOOL →", use_container_width=True, type="primary")
+                if go:
                     tx = Transaction(doc_type, doc_id, details, user["username"], attachment=attachment_ready)
                     ok, msg = bc.add_transaction(tx)
                     if ok:
-                        extra = f" · `{attachment_ready['filename']}` fingerprinted" if attachment_ready else ""
-                        st.success(f"✓ {msg}{extra}")
+                        extra = f" · attachment={attachment_ready['filename']}" if attachment_ready else ""
+                        st.success(f"OK · {msg}{extra}")
                     else:
-                        st.error(f"✗ {msg}")
+                        st.error(f"REJECTED · {msg}")
 
         with right_col:
-            st.markdown('<div class="section-header"><h2>File Preview</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="lc-sh"><span class="lc-sh-label">File Preview</span></div>', unsafe_allow_html=True)
             if attachment_ready:
-                render_preview_card(attachment_ready)
+                render_file_card(attachment_ready)
             else:
-                st.markdown('<div class="pool-empty"><div class="pe-icon">📎</div><div>No file attached</div></div>', unsafe_allow_html=True)
+                st.markdown('<div class="lc-empty">// NO ATTACHMENT STAGED</div>', unsafe_allow_html=True)
 
-            st.markdown('<div class="section-header" style="margin-top:1.5rem;"><h2>Mempool</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
+            # Mempool
+            pending_count = len(bc.pending_transactions)
+            st.markdown(f'<div class="lc-sh" style="margin-top:1.5rem;"><span class="lc-sh-label">Mempool</span><span class="lc-sh-count">{pending_count}</span></div>', unsafe_allow_html=True)
+
             if bc.pending_transactions:
                 for tx in bc.pending_transactions:
                     att   = tx.get("attachment")
-                    att_s = f'<span class="att-pill">📎 {att["filename"]}</span>' if att else ""
+                    att_s = '<span class="lc-type-pill pill-att" style="font-size:0.55rem;">ATT</span>' if att else ""
                     st.markdown(f"""
-                    <div class="tx-row">
-                      {tx_type_badge(tx['doc_type'])}
-                      <div><div class="tx-doc-id">{tx['doc_id']}</div><div class="tx-sender">{tx['sender']}</div></div>
-                      <div style="margin-left:auto;">{att_s}</div>
+                    <div class="lc-pool-row">
+                      {pill(tx['doc_type'])}
+                      <span class="pr-id">{tx['doc_id']}</span>
+                      {att_s}
+                      <span class="pr-sender">{tx['sender']} · {ts_short(tx['timestamp'])}</span>
                     </div>""", unsafe_allow_html=True)
 
-                # Mint is also admin-only
                 st.markdown("<br>", unsafe_allow_html=True)
                 if can("can_mint"):
-                    if st.button(f"🔨  Mint Block  ({len(bc.pending_transactions)} records)", type="primary", use_container_width=True):
+                    if st.button(f"MINT BLOCK · {pending_count} RECORD{'S' if pending_count!=1 else ''} →", type="primary", use_container_width=True):
                         ok, msg = bc.mint_pending_transactions(user["username"])
                         if ok:
-                            st.success(f"✓ {msg}")
+                            st.success(f"OK · {msg}")
                             st.rerun()
                 else:
-                    st.markdown('<div class="access-denied" style="padding:1.5rem;"><div class="ad-icon" style="font-size:1.5rem;">🔒</div><h3 style="font-size:0.9rem;">Minting requires Admin role</h3></div>', unsafe_allow_html=True)
+                    st.markdown("""
+                    <div class="lc-denied" style="padding:1.25rem;">
+                      <div class="lc-denied-code" style="font-size:0.58rem;">MINT_BLOCKED · ROLE_INSUFFICIENT</div>
+                      <p style="font-size:0.75rem;margin-top:0.4rem;">Minting requires <strong>admin</strong> role.</p>
+                    </div>""", unsafe_allow_html=True)
             else:
-                st.markdown('<div class="pool-empty"><div class="pe-icon">⏳</div><div>Mempool is empty</div></div>', unsafe_allow_html=True)
+                st.markdown('<div class="lc-empty">// MEMPOOL EMPTY · NO PENDING TRANSACTIONS</div>', unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — LEDGER  (admin + auditor)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 2 — LEDGER
+# ══════════════════════════════════════════════════════════════════════════════
 with tabs[2]:
     if not has_tab("ledger"):
-        access_denied("the Ledger — Auditor or Administrator access required")
+        access_denied("ledger · read_ledger permission required")
     else:
-        tc1, tc2, tc3, tc4 = st.columns([3, 1.5, 1, 1])
+        # Toolbar
+        tc1, tc2, tc3, tc4 = st.columns([3, 1.5, 0.8, 0.9])
         with tc1:
-            search_query = st.text_input("Search", placeholder="🔍  Document ID, sender, parties…", label_visibility="collapsed")
+            search_query = st.text_input("_", placeholder="Search by Document ID, operator, counterparties…", label_visibility="collapsed")
         with tc2:
-            filter_type = st.selectbox("Type", ["All","Invoice","Contract"], label_visibility="collapsed")
+            filter_type = st.selectbox("_", ["All","Invoice","Contract"], label_visibility="collapsed")
         with tc3:
             st.markdown("<br>", unsafe_allow_html=True)
-            st.button("Filter", use_container_width=True)
+            st.button("FILTER", use_container_width=True)
         with tc4:
             all_committed = bc.all_transactions()
             if all_committed:
                 def build_csv(txs):
                     out = io.StringIO()
-                    w   = csv.DictWriter(out, fieldnames=["block","doc_type","doc_id","sender","timestamp","details","has_attachment","file_sha256"])
+                    w   = csv.DictWriter(out, fieldnames=["block","doc_type","doc_id","sender","timestamp","details","has_attachment","sha256"])
                     w.writeheader()
                     for tx in txs:
                         att = tx.get("attachment") or {}
                         w.writerow({"block":tx["_block_index"],"doc_type":tx["doc_type"],"doc_id":tx["doc_id"],
-                                    "sender":tx["sender"],"timestamp":time.ctime(tx["timestamp"]),
-                                    "details":json.dumps(tx["details"]),"has_attachment":bool(att),"file_sha256":att.get("sha256","")})
+                                    "sender":tx["sender"],"timestamp":ts(tx["timestamp"]),
+                                    "details":json.dumps(tx["details"]),"has_attachment":bool(att),"sha256":att.get("sha256","")})
                     return out.getvalue()
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.download_button("⬇ Export", build_csv(all_committed), f"ledger_{int(time.time())}.csv", "text/csv", use_container_width=True)
+                st.download_button("EXPORT CSV", build_csv(all_committed), f"ledger_{int(time.time())}.csv", "text/csv", use_container_width=True)
 
         if search_query or filter_type != "All":
             import pandas as pd
             results = bc.search_transactions(search_query, filter_type)
-            st.markdown(f'<div style="font-size:0.8rem;color:#4b6a9b;margin:0.5rem 0 0.75rem 0;">{len(results)} record(s) matched</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="font-family:var(--mono);font-size:0.62rem;color:var(--text2);margin:0.5rem 0 0.75rem 0;letter-spacing:0.06em;">> {len(results)} RECORD(S) MATCHED</div>', unsafe_allow_html=True)
             if results:
-                rows = [{"Block":f"#{tx['_block_index']}","Type":tx["doc_type"],"Document ID":tx["doc_id"],
-                         "Sender":tx["sender"],"Attachment":f"📎 {tx['attachment']['filename']}" if tx.get("attachment") else "—",
-                         "Timestamp":time.ctime(tx["timestamp"])} for tx in results]
+                rows = [{"Block":f"BLK-{tx['_block_index']:04d}","Type":tx["doc_type"],
+                         "Document ID":tx["doc_id"],"Operator":tx["sender"],
+                         "Attachment":"YES" if tx.get("attachment") else "—",
+                         "Timestamp":ts(tx["timestamp"])} for tx in results]
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
             else:
-                st.warning("No records matched your search criteria.")
+                st.warning("NO RECORDS MATCHED")
             st.markdown("<hr>", unsafe_allow_html=True)
 
-        st.markdown('<div class="section-header"><h2>Block Explorer</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
+        # Block Explorer
+        total_blocks = len(bc.chain)
+        st.markdown(f'<div class="lc-sh"><span class="lc-sh-label">Block Explorer</span><span class="lc-sh-count">{total_blocks}</span></div>', unsafe_allow_html=True)
+
         for block in reversed(bc.chain):
             tx_count  = len(block.transactions)
             att_count = sum(1 for tx in block.transactions if tx.get("attachment"))
-            att_str   = f" · 📎 {att_count} file{'s' if att_count>1 else ''}" if att_count else ""
-            label     = (f"Genesis Block  ·  System  ·  {time.strftime('%b %d %Y', time.localtime(block.timestamp))}"
-                         if block.index == 0 else
-                         f"Block #{block.index}  ·  {tx_count} record{'s' if tx_count!=1 else ''}  ·  {block.creator_handle}{att_str}  ·  {time.strftime('%b %d %Y %H:%M', time.localtime(block.timestamp))}")
 
-            with st.expander(label, expanded=False):
+            if block.index == 0:
+                header = f"BLK-0000  ·  GENESIS  ·  {ts(block.timestamp)}  ·  {block.creator_handle}"
+            else:
+                att_tag = f"  ·  ATT:{att_count}" if att_count else ""
+                header  = f"BLK-{block.index:04d}  ·  TXN:{tx_count}{att_tag}  ·  {ts(block.timestamp)}  ·  {block.creator_handle}"
+
+            with st.expander(header, expanded=False):
                 st.markdown(f"""
-                <div class="hash-row"><span class="hash-key">Block Hash &nbsp;</span><span class="hash-val">{block.hash}</span></div>
-                <div class="hash-row"><span class="hash-key">Previous Hash &nbsp;</span><span class="hash-prev">{block.previous_hash}</span></div>""", unsafe_allow_html=True)
+                <div class="lc-hash-block">
+                  <span class="hb-key">block_hash</span>
+                  <span class="hb-val">{block.hash}</span>
+                </div>
+                <div class="lc-hash-block">
+                  <span class="hb-key">prev_hash</span>
+                  <span class="hb-prev">{block.previous_hash}</span>
+                </div>""", unsafe_allow_html=True)
 
                 if block.index > 0:
-                    st.markdown('<div style="font-size:0.72rem;color:#3b5280;text-transform:uppercase;letter-spacing:0.07em;margin:1rem 0 0.6rem 0;">Transactions</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="font-family:var(--mono);font-size:0.58rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.12em;margin:0.9rem 0 0.5rem 0;">// TRANSACTIONS [{tx_count}]</div>', unsafe_allow_html=True)
                     for i, tx in enumerate(block.transactions):
                         attachment = tx.get("attachment")
-                        att_label  = f"  ·  📎 {attachment['filename']}" if attachment else ""
-                        with st.expander(f"#{i+1}  ·  {tx['doc_type']}  ·  {tx['doc_id']}  ·  {tx['sender']}{att_label}"):
+                        att_tag    = f"  ·  ATT:{attachment['filename']}" if attachment else ""
+                        inner_lbl  = f"TXN-{i+1:03d}  ·  {tx['doc_type'].upper()}  ·  {tx['doc_id']}  ·  {tx['sender']}{att_tag}"
+
+                        with st.expander(inner_lbl, expanded=False):
                             st.json({k:v for k,v in tx.items() if k != "attachment"})
                             if attachment:
-                                st.markdown("**Attachment**")
-                                render_preview_card(attachment)
+                                st.markdown(f'<div style="font-family:var(--mono);font-size:0.58rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin:0.75rem 0 0.4rem 0;">// ATTACHMENT</div>', unsafe_allow_html=True)
+                                render_file_card(attachment)
                                 dl_col, vfy_col = st.columns(2)
                                 with dl_col:
-                                    st.download_button(f"⬇ Download {attachment['filename']}",
-                                                       data=base64.b64decode(attachment["data"]),
-                                                       file_name=attachment["filename"],
-                                                       mime=attachment.get("mime_type","application/octet-stream"),
-                                                       key=f"dl_{block.index}_{i}")
+                                    st.download_button(
+                                        f"DOWNLOAD FILE",
+                                        data=base64.b64decode(attachment["data"]),
+                                        file_name=attachment["filename"],
+                                        mime=attachment.get("mime_type","application/octet-stream"),
+                                        key=f"dl_{block.index}_{i}",
+                                        use_container_width=True,
+                                    )
                                 with vfy_col:
-                                    if st.button("🔍 Verify Integrity", key=f"vfy_{block.index}_{i}"):
+                                    if st.button("VERIFY SHA-256", key=f"vfy_{block.index}_{i}", use_container_width=True):
                                         ok, detail = Blockchain.verify_attachment(attachment)
-                                        css, icon, txt = ("integrity-ok","✅","File intact — SHA-256 verified") if ok else ("integrity-fail","🚨","Integrity check FAILED")
-                                        st.markdown(f'<div class="{css}">{icon} <strong>{txt}</strong><div class="integrity-hash">{detail}</div></div>', unsafe_allow_html=True)
+                                        if ok:
+                                            st.markdown(f'<div class="lc-ok">✓ INTEGRITY VERIFIED<div class="ih">{detail}</div></div>', unsafe_allow_html=True)
+                                        else:
+                                            st.markdown(f'<div class="lc-fail">✗ INTEGRITY FAILURE<div class="ih">{detail}</div></div>', unsafe_allow_html=True)
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — SECURITY  (admin only)
-# ═══════════════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════════
+# TAB 3 — SECURITY
+# ══════════════════════════════════════════════════════════════════════════════
 with tabs[3]:
     if not has_tab("security"):
-        access_denied("Security — Administrator access required")
+        access_denied("security · admin_role required")
     else:
-        left, mid, right = st.columns([1, 2, 1])
-        with mid:
+        sec_l, sec_m, sec_r = st.columns([0.8, 2.4, 0.8])
+        with sec_m:
             st.markdown("""
-            <div class="verify-panel">
-              <h3>Chain Integrity Verification</h3>
-              <p>Re-computes every block hash and verifies the cryptographic linkage<br>across the entire chain to detect any tampering or corruption.</p>
+            <div class="lc-verify-box">
+              <div class="vb-title">// Chain Integrity Verification</div>
+              <div class="vb-desc">
+                Re-derives every block hash from its raw payload and validates the
+                cryptographic linkage (prev_hash → hash) across the full chain.
+                Any mutation — including a single bit flip — will produce a hash
+                mismatch and trigger a CRITICAL alert.
+              </div>
             </div>""", unsafe_allow_html=True)
+
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Run Cryptographic Verification", type="primary", use_container_width=True):
-                with st.spinner("Verifying chain…"):
+            if st.button("RUN VERIFICATION →", type="primary", use_container_width=True):
+                with st.spinner("Computing hashes…"):
                     time.sleep(1)
                     is_valid = bc.is_chain_valid()
                 if is_valid:
-                    st.markdown('<div style="text-align:center"><div class="chain-status-ok">✅ &nbsp; Chain is valid — all hashes verified</div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="lc-chain-ok">✓ &nbsp; CHAIN VALID — ALL BLOCK HASHES VERIFIED — NO TAMPERING DETECTED</div>', unsafe_allow_html=True)
                     st.balloons()
                 else:
-                    st.markdown('<div style="text-align:center"><div class="chain-status-fail">🚨 &nbsp; CRITICAL — Blockchain integrity compromised</div></div>', unsafe_allow_html=True)
+                    st.markdown('<div class="lc-chain-fail">✗ &nbsp; CRITICAL ALERT — HASH MISMATCH DETECTED — CHAIN INTEGRITY COMPROMISED</div>', unsafe_allow_html=True)
 
             st.markdown("<br><br>", unsafe_allow_html=True)
-            st.markdown('<div class="section-header"><h2>Chain Summary</h2><div class="section-line"></div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="lc-sh"><span class="lc-sh-label">Chain Manifest</span><span class="lc-sh-count">{len(bc.chain)}</span></div>', unsafe_allow_html=True)
+
             import pandas as pd
-            chain_rows = [{"Block": blk.index, "Records": len(blk.transactions),
-                           "Attachments": sum(1 for tx in blk.transactions if isinstance(tx,dict) and tx.get("attachment")),
-                           "Minted By": blk.creator_handle,
-                           "Timestamp": time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(blk.timestamp)),
-                           "Hash (short)": blk.hash[:20]+"…"} for blk in bc.chain]
-            st.dataframe(pd.DataFrame(chain_rows), use_container_width=True, hide_index=True)
+            manifest = []
+            for blk in bc.chain:
+                att_c = sum(1 for tx in blk.transactions if isinstance(tx,dict) and tx.get("attachment"))
+                manifest.append({
+                    "Block":       f"BLK-{blk.index:04d}",
+                    "TXN Count":   len(blk.transactions),
+                    "Attachments": att_c,
+                    "Operator":    blk.creator_handle,
+                    "Timestamp":   ts(blk.timestamp),
+                    "Hash":        blk.hash[:24]+"…",
+                    "Prev Hash":   blk.previous_hash[:16]+"…",
+                })
+            st.dataframe(pd.DataFrame(manifest), use_container_width=True, hide_index=True)
