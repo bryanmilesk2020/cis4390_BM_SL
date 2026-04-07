@@ -915,15 +915,25 @@ with tabs[1]:
             st.markdown('<div class="lc-sh"><span class="lc-sh-label">New Transaction</span></div>', unsafe_allow_html=True)
             st.markdown('<div class="lc-panel"><div class="lc-panel-title">// DOCUMENT PARAMETERS</div>', unsafe_allow_html=True)
 
-            doc_type = st.selectbox("Doc Type", ["Invoice", "Contract"])
+            doc_type = st.selectbox("Doc Type", ["Invoice", "Contract", "General Record", "Tax Document"])
             if doc_type == "Invoice":
                 doc_id  = st.text_input("Invoice ID", placeholder="INV-2025-001")
                 amt     = st.number_input("Amount (USD)", min_value=0.0, format="%.2f")
                 details = {"amount": amt}
-            else:
+            elif doc_type == "Contract":
                 doc_id  = st.text_input("Contract ID", placeholder="CTR-2025-001")
                 parties = st.text_input("Counterparties", placeholder="Entity A, Entity B")
                 details = {"parties": parties}
+            elif doc_type == "Tax Document":
+                doc_id   = st.text_input("Document ID", placeholder="FORM-1040-ES")
+                tax_year = st.text_input("Tax Year", placeholder="2025")
+                category = st.selectbox("Category", ["Employment Tax", "Gross Receipts", "Asset Depreciation", "Expense Proof"])
+                details  = {"tax_year": tax_year, "category": category}
+            else: # General Record
+                doc_id  = st.text_input("Record ID", placeholder="REC-999")
+                notes   = st.text_area("Record Description", placeholder="Enter specific details about this business record...")
+                details = {"notes": notes}
+
             st.markdown('</div>', unsafe_allow_html=True)
 
             st.markdown('<div class="lc-sh"><span class="lc-sh-label">File Attachment</span></div>', unsafe_allow_html=True)
@@ -988,6 +998,7 @@ with tabs[1]:
                     <div class="lc-denied" style="padding:1.25rem;">
                       <div class="lc-denied-code" style="font-size:0.58rem;">MINT_BLOCKED · ROLE_INSUFFICIENT</div>
                       <p style="font-size:0.75rem;margin-top:0.4rem;">Minting requires <strong>admin</strong> role.</p>
+                
                     </div>""", unsafe_allow_html=True)
             else:
                 st.markdown('<div class="lc-empty">// MEMPOOL EMPTY · NO PENDING TRANSACTIONS</div>', unsafe_allow_html=True)
@@ -1004,7 +1015,7 @@ with tabs[2]:
         with tc1:
             search_query = st.text_input("_", placeholder="Search by Document ID, operator, counterparties…", label_visibility="collapsed")
         with tc2:
-            filter_type = st.selectbox("_", ["All","Invoice","Contract"], label_visibility="collapsed")
+            filter_type = st.selectbox("_", ["All","Invoice","Contract", "General Record", "Tax Document"], label_visibility="collapsed")
         with tc3:
             st.markdown("<br>", unsafe_allow_html=True)
             st.button("FILTER", use_container_width=True)
