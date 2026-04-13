@@ -176,16 +176,18 @@ class Blockchain:
 
     def stats(self):
         all_tx = self.all_transactions()
-        invoices  = [t for t in all_tx if t["doc_type"] == "Invoice"]
-        contracts = [t for t in all_tx if t["doc_type"] == "Contract"]
+        invoices   = [t for t in all_tx if t["doc_type"] == "Invoice"]
+        contracts  = [t for t in all_tx if t["doc_type"] == "Contract"]
+        inventory  = [t for t in all_tx if t["doc_type"] == "Inventory"]
         return {
-            "total_blocks":       len(self.chain),
-            "total_transactions": len(all_tx),
-            "total_invoices":     len(invoices),
-            "total_contracts":    len(contracts),
-            "total_invoice_value": sum(float(t["details"].get("amount", 0)) for t in invoices),
-            "pending":            len(self.pending_transactions),
-            "with_attachments":   sum(1 for t in all_tx if t.get("attachment")),
+            "total_blocks":          len(self.chain),
+            "total_transactions":    len(all_tx),
+            "total_invoices":        len(invoices),
+            "total_contracts":       len(contracts),
+            "total_inventory_items": len(inventory),
+            "total_invoice_value":   sum(float(t["details"].get("amount", 0)) for t in invoices),
+            "pending":               len(self.pending_transactions),
+            "with_attachments":      sum(1 for t in all_tx if t.get("attachment")),
         }
 
     # ── File integrity ────────────────────────────────────────────────────────

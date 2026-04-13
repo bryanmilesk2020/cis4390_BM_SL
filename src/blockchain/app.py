@@ -231,7 +231,7 @@ html, body, [class*="css"], .stApp { font-family: var(--sans); background: var(-
 ══════════════════════════════════════════════════ */
 .lc-kpi-strip {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     border: 1px solid var(--border);
     margin-bottom: 1.75rem;
 }
@@ -308,9 +308,10 @@ html, body, [class*="css"], .stApp { font-family: var(--sans); background: var(-
     padding: 0.15rem 0.5rem; border: 1px solid; line-height: 1.6;
     white-space: nowrap; display: inline-block;
 }
-.pill-invoice  { color: var(--green);  border-color: #00602d; background: var(--green-bg); }
-.pill-contract { color: var(--purple); border-color: #3d2a66; background: #100a1f; }
-.pill-att      { color: var(--cyan);   border-color: var(--cyan-dim); background: var(--cyan-bg); }
+.pill-invoice   { color: var(--green);  border-color: #00602d; background: var(--green-bg); }
+.pill-contract  { color: var(--purple); border-color: #3d2a66; background: #100a1f; }
+.pill-inventory { color: var(--amber);  border-color: #604000; background: var(--amber-bg); }
+.pill-att       { color: var(--cyan);   border-color: var(--cyan-dim); background: var(--cyan-bg); }
 
 /* ══════════════════════════════════════════════════
    BLOCK CARDS
@@ -660,7 +661,12 @@ def load_ledger():
     return Blockchain() # Returns a fresh chain if file doesn't exist
 
 def pill(doc_type):
-    cls = "pill-invoice" if doc_type == "Invoice" else "pill-contract"
+    cls_map = {
+        "Invoice":   "pill-invoice",
+        "Contract":  "pill-contract",
+        "Inventory": "pill-inventory",
+    }
+    cls = cls_map.get(doc_type, "pill-contract")
     return f'<span class="lc-type-pill {cls}">{doc_type}</span>'
 
 def render_file_card(att):
@@ -872,6 +878,11 @@ with tabs[0]:
         <div class="lc-kpi-value dim">{inv_val}</div>
         <div class="lc-kpi-sub">usd · committed</div>
       </div>
+      <div class="lc-kpi-cell">
+        <div class="lc-kpi-label">Inventory Items</div>
+        <div class="lc-kpi-value">{stats['total_inventory_items']}</div>
+        <div class="lc-kpi-sub">sku records</div>
+      </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -937,7 +948,7 @@ with tabs[1]:
             st.markdown('<div class="lc-sh"><span class="lc-sh-label">New Transaction</span></div>', unsafe_allow_html=True)
             st.markdown('<div class="lc-panel"><div class="lc-panel-title">// DOCUMENT PARAMETERS</div>', unsafe_allow_html=True)
 
-            doc_type = st.selectbox("Doc Type", ["Invoice", "Contract", "General Record", "Tax Document"])
+            doc_type = st.selectbox("Doc Type", ["Invoice", "Contract", "Inventory", "General Record", "Tax Document"])
             if doc_type == "Invoice":
                 doc_id  = st.text_input("Invoice ID", placeholder="INV-2025-001")
                 amt     = st.number_input("Amount (USD)", min_value=0.0, format="%.2f")
@@ -946,6 +957,12 @@ with tabs[1]:
                 doc_id  = st.text_input("Contract ID", placeholder="CTR-2025-001")
                 parties = st.text_input("Counterparties", placeholder="Entity A, Entity B")
                 details = {"parties": parties}
+            elif doc_type == "Inventory":
+                doc_id   = st.text_input("Item ID / SKU", placeholder="SKU-00412")
+                item_name = st.text_input("Item Name", placeholder="e.g. Corrugated Cardboard Box")
+                quantity  = st.number_input("Quantity", min_value=0, step=1)
+                unit      = st.selectbox("Unit of Measurement", ["Units", "Lbs", "Kg", "Boxes", "Pallets", "Cases", "Oz", "L", "mL"])
+                details  = {"item_name": item_name, "quantity": quantity, "unit": unit}
             elif doc_type == "Tax Document":
                 doc_id   = st.text_input("Document ID", placeholder="FORM-1040-ES")
                 tax_year = st.text_input("Tax Year", placeholder="2025")
@@ -1038,7 +1055,7 @@ with tabs[2]:
         with tc1:
             search_query = st.text_input("_", placeholder="Search by Document ID, operator, counterparties…", label_visibility="collapsed")
         with tc2:
-            filter_type = st.selectbox("_", ["All","Invoice","Contract", "General Record", "Tax Document"], label_visibility="collapsed")
+            filter_type = st.selectbox("_", ["All","Invoice","Contract","Inventory","General Record","Tax Document"], label_visibility="collapsed")
         with tc3:
             st.markdown("<br>", unsafe_allow_html=True)
             st.button("FILTER", use_container_width=True)
