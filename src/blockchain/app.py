@@ -624,14 +624,6 @@ hr { border-color: var(--border) !important; margin: 1.25rem 0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Session ────────────────────────────────────────────────────────────────────
-if "blockchain"    not in st.session_state: st.session_state.blockchain    = Blockchain()
-if "authenticated" not in st.session_state: st.session_state.authenticated = False
-if "user"          not in st.session_state: st.session_state.user          = None
-if "login_error"   not in st.session_state: st.session_state.login_error   = ""
-
-bc = st.session_state.blockchain
-
 # ── Utility ────────────────────────────────────────────────────────────────────
 def file_icon(fn):
     ext = fn.rsplit(".",1)[-1].lower() if "." in fn else ""
@@ -644,6 +636,28 @@ def fmt_size(n):
 
 def ts(t): return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(t))
 def ts_short(t): return time.strftime('%m/%d %H:%M', time.localtime(t))
+
+def save_ledger(blockchain):
+    """Saves the current blockchain state to a local JSON file."""
+    try:
+        with open("ledger.json", "w") as f:
+            json.dump(blockchain.to_dict(), f, indent=4)
+        return True
+    except Exception as e:
+        st.error(f"SYSTEM_ERR: Failed to write to disk. {e}")
+        return False
+
+def load_ledger():
+    """Attempts to load the blockchain from the local JSON file."""
+    import os
+    if os.path.exists("ledger.json"):
+        try:
+            with open("ledger.json", "r") as f:
+                data = json.load(f)
+            return Blockchain.from_dict(data)
+        except Exception as e:
+            st.error(f"SYSTEM_ERR: Ledger corruption detected. {e}")
+    return Blockchain() # Returns a fresh chain if file doesn't exist
 
 def pill(doc_type):
     cls = "pill-invoice" if doc_type == "Invoice" else "pill-contract"
@@ -676,6 +690,14 @@ def access_denied(area="this resource"):
 
 def can(p):   return st.session_state.user and st.session_state.user.get(p, False)
 def has_tab(k): return st.session_state.user and k in st.session_state.user.get("tabs", [])
+
+# ── Session ────────────────────────────────────────────────────────────────────
+if "blockchain"    not in st.session_state: st.session_state.blockchain    = load_ledger()
+if "authenticated" not in st.session_state: st.session_state.authenticated = False
+if "user"          not in st.session_state: st.session_state.user          = None
+if "login_error"   not in st.session_state: st.session_state.login_error   = ""
+
+bc = st.session_state.blockchain
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LOGIN
@@ -992,6 +1014,7 @@ with tabs[1]:
                         ok, msg = bc.mint_pending_transactions(user["username"])
                         if ok:
                             st.success(f"OK · {msg}")
+                            save_ledger(bc)
                             st.rerun()
                 else:
                     st.markdown("""

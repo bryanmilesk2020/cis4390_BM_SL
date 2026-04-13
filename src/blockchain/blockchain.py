@@ -122,6 +122,37 @@ class Blockchain:
             if cur.previous_hash != prev.hash:
                 return False
         return True
+    
+    def to_dict(self):
+        """Converts the entire blockchain into a dictionary for storage."""
+        return [
+            {
+                "index": b.index,
+                "transactions": b.transactions,
+                "timestamp": b.timestamp,
+                "previous_hash": b.previous_hash,
+                "creator_handle": b.creator_handle,
+                "hash": b.hash
+            }
+            for b in self.chain
+        ]
+
+    @classmethod
+    def from_dict(cls, chain_data):
+        """Reconstructs the blockchain object from a list of block dictionaries."""
+        instance = cls()
+        instance.chain = []  # Clear the default genesis block
+        for b_data in chain_data:
+            block = Block(
+                index=b_data["index"],
+                transactions=b_data["transactions"],
+                timestamp=b_data["timestamp"],
+                previous_hash=b_data["previous_hash"],
+                creator_handle=b_data["creator_handle"]
+            )
+            block.hash = b_data["hash"] # Ensure the original hash is preserved
+            instance.chain.append(block)
+        return instance
 
     # ── Query helpers ─────────────────────────────────────────────────────────
 
