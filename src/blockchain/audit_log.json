@@ -1,0 +1,58 @@
+[
+    {
+        "timestamp": 1776112774.669852,
+        "ts_fmt": "2026-04-13 15:39:34",
+        "username": "admin",
+        "event": "LOGIN_FAIL",
+        "detail": "Failed login attempt for identifier 'admin'. 4 attempt(s) remaining.",
+        "outcome": "FAIL"
+    },
+    {
+        "timestamp": 1776112817.2127395,
+        "ts_fmt": "2026-04-13 15:40:17",
+        "username": "admin",
+        "event": "LOGIN_FAIL",
+        "detail": "Failed login attempt for identifier 'admin'. 3 attempt(s) remaining.",
+        "outcome": "FAIL"
+    },
+    {
+        "timestamp": 1776112821.1204731,
+        "ts_fmt": "2026-04-13 15:40:21",
+        "username": "admin",
+        "event": "LOGIN_FAIL",
+        "detail": "Failed login attempt for identifier 'admin'. 2 attempt(s) remaining.",
+        "outcome": "FAIL"
+    },
+    {
+        "timestamp": 1776112824.3587582,
+        "ts_fmt": "2026-04-13 15:40:24",
+        "username": "admin",
+        "event": "LOGIN_FAIL",
+        "detail": "Failed login attempt for identifier 'admin'. 1 attempt(s) remaining.",
+        "outcome": "FAIL"
+    },
+    {
+        "timestamp": 1776112826.9595346,
+        "ts_fmt": "2026-04-13 15:40:26",
+        "username": "admin",
+        "event": "LOGIN_LOCKOUT_TRIGGERED",
+        "detail": "Identifier 'admin' locked after 5 failed attempts.",
+        "outcome": "WARN"
+    },
+    {
+        "timestamp": 1776112832.3690798,
+        "ts_fmt": "2026-04-13 15:40:32",
+        "username": "admin",
+        "event": "LOGIN_LOCKED",
+        "detail": "Blocked login attempt for locked identifier 'admin'. 294s remaining.",
+        "outcome": "FAIL"
+    },
+    {
+        "timestamp": 1776112863.9820778,
+        "ts_fmt": "2026-04-13 15:41:03",
+        "username": "admin",
+        "event": "LOGIN",
+        "detail": "User 'admin' authenticated successfully.",
+        "outcome": "OK"
+    }
+]

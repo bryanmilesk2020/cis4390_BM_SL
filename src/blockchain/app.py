@@ -660,6 +660,40 @@ def load_ledger():
             st.error(f"SYSTEM_ERR: Ledger corruption detected. {e}")
     return Blockchain() # Returns a fresh chain if file doesn't exist
 
+def save_audit_log(log: list):
+    """Persists the in-memory audit log to audit_log.json."""
+    try:
+        with open("audit_log.json", "w") as f:
+            json.dump(log, f, indent=4)
+        return True
+    except Exception as e:
+        st.error(f"SYSTEM_ERR: Failed to write audit log. {e}")
+        return False
+
+def load_audit_log() -> list:
+    """Loads the audit log from disk, returning an empty list if not found."""
+    import os
+    if os.path.exists("audit_log.json"):
+        try:
+            with open("audit_log.json", "r") as f:
+                return json.load(f)
+        except Exception as e:
+            st.error(f"SYSTEM_ERR: Audit log corruption detected. {e}")
+    return []
+
+def append_log(event: str, detail: str, outcome: str, username: str = "system"):
+    """Appends one entry to the in-memory audit log and immediately persists it."""
+    entry = {
+        "timestamp": time.time(),
+        "ts_fmt":    ts(time.time()),
+        "username":  username,
+        "event":     event,
+        "detail":    detail,
+        "outcome":   outcome,   # "OK" | "FAIL" | "WARN"
+    }
+    st.session_state.audit_log.append(entry)
+    save_audit_log(st.session_state.audit_log)
+
 def pill(doc_type):
     cls_map = {
         "Invoice":   "pill-invoice",
@@ -697,11 +731,45 @@ def access_denied(area="this resource"):
 def can(p):   return st.session_state.user and st.session_state.user.get(p, False)
 def has_tab(k): return st.session_state.user and k in st.session_state.user.get("tabs", [])
 
+# ── Rate-limiting / lockout ────────────────────────────────────────────────────
+MAX_ATTEMPTS    = 5    # failed tries before lockout
+LOCKOUT_SECONDS = 300  # 5-minute lockout window
+
+def is_locked_out(username: str) -> tuple:
+    """
+    Returns (locked: bool, seconds_remaining: int).
+    Reads from st.session_state.login_attempts which has the shape:
+      { username: { "count": int, "locked_until": float } }
+    """
+    record = st.session_state.login_attempts.get(username)
+    if not record:
+        return False, 0
+    locked_until = record.get("locked_until", 0)
+    if locked_until and time.time() < locked_until:
+        return True, int(locked_until - time.time())
+    return False, 0
+
+def record_failed_attempt(username: str):
+    """Increments the failed-attempt counter and sets a lockout if threshold is reached."""
+    attempts = st.session_state.login_attempts
+    if username not in attempts:
+        attempts[username] = {"count": 0, "locked_until": 0}
+    attempts[username]["count"] += 1
+    if attempts[username]["count"] >= MAX_ATTEMPTS:
+        attempts[username]["locked_until"] = time.time() + LOCKOUT_SECONDS
+        attempts[username]["count"] = 0   # reset counter so it works after lockout expires
+
+def clear_failed_attempts(username: str):
+    """Clears the attempt record on a successful login."""
+    st.session_state.login_attempts.pop(username, None)
+
 # ── Session ────────────────────────────────────────────────────────────────────
-if "blockchain"    not in st.session_state: st.session_state.blockchain    = load_ledger()
-if "authenticated" not in st.session_state: st.session_state.authenticated = False
-if "user"          not in st.session_state: st.session_state.user          = None
-if "login_error"   not in st.session_state: st.session_state.login_error   = ""
+if "blockchain"     not in st.session_state: st.session_state.blockchain     = load_ledger()
+if "authenticated"  not in st.session_state: st.session_state.authenticated  = False
+if "user"           not in st.session_state: st.session_state.user           = None
+if "login_error"    not in st.session_state: st.session_state.login_error    = ""
+if "audit_log"      not in st.session_state: st.session_state.audit_log      = load_audit_log()
+if "login_attempts" not in st.session_state: st.session_state.login_attempts = {}
 
 bc = st.session_state.blockchain
 
@@ -730,17 +798,64 @@ if not st.session_state.authenticated:
             st.form_submit_button("AUTHENTICATE →", use_container_width=True, type="primary")
 
         if st.session_state.get("FormSubmitter:lc_login-AUTHENTICATE →"):
-            ok, user = authenticate(
-                st.session_state.get("li_user",""),
-                st.session_state.get("li_pass","")
-            )
-            if ok:
-                st.session_state.authenticated = True
-                st.session_state.user          = user
-                st.session_state.login_error   = ""
-                st.rerun()
+            attempted_user = st.session_state.get("li_user", "").strip().lower()
+            locked, secs_left = is_locked_out(attempted_user)
+
+            if locked:
+                mins = secs_left // 60
+                secs = secs_left % 60
+                st.session_state.login_error = (
+                    f"ACCOUNT LOCKED — too many failed attempts. "
+                    f"Try again in {mins}m {secs:02d}s."
+                )
+                append_log(
+                    "LOGIN_LOCKED",
+                    f"Blocked login attempt for locked identifier '{attempted_user}'. "
+                    f"{secs_left}s remaining.",
+                    "FAIL",
+                    username=attempted_user,
+                )
             else:
-                st.session_state.login_error = "AUTHENTICATION FAILED — invalid credentials"
+                ok, user = authenticate(
+                    st.session_state.get("li_user", ""),
+                    st.session_state.get("li_pass", ""),
+                )
+                if ok:
+                    st.session_state.authenticated = True
+                    st.session_state.user          = user
+                    st.session_state.login_error   = ""
+                    clear_failed_attempts(attempted_user)
+                    append_log("LOGIN", f"User '{attempted_user}' authenticated successfully.", "OK", username=attempted_user)
+                    st.rerun()
+                else:
+                    record_failed_attempt(attempted_user)
+                    attempt_record = st.session_state.login_attempts.get(attempted_user, {})
+                    # Check if this failure just triggered a new lockout
+                    just_locked = attempt_record.get("locked_until", 0) > time.time()
+                    if just_locked:
+                        st.session_state.login_error = (
+                            f"ACCOUNT LOCKED — {MAX_ATTEMPTS} failed attempts reached. "
+                            f"Try again in {LOCKOUT_SECONDS // 60} minutes."
+                        )
+                        append_log(
+                            "LOGIN_LOCKOUT_TRIGGERED",
+                            f"Identifier '{attempted_user}' locked after {MAX_ATTEMPTS} failed attempts.",
+                            "WARN",
+                            username=attempted_user,
+                        )
+                    else:
+                        remaining = MAX_ATTEMPTS - attempt_record.get("count", 0)
+                        st.session_state.login_error = (
+                            f"AUTHENTICATION FAILED — invalid credentials. "
+                            f"{remaining} attempt{'s' if remaining != 1 else ''} remaining before lockout."
+                        )
+                        append_log(
+                            "LOGIN_FAIL",
+                            f"Failed login attempt for identifier '{attempted_user}'. "
+                            f"{remaining} attempt(s) remaining.",
+                            "FAIL",
+                            username=attempted_user,
+                        )
 
         if st.session_state.login_error:
             st.error(st.session_state.login_error)
@@ -994,13 +1109,19 @@ with tabs[1]:
             with st.form("submit_form", clear_on_submit=True):
                 go = st.form_submit_button("SUBMIT TO MEMPOOL →", use_container_width=True, type="primary")
                 if go:
-                    tx = Transaction(doc_type, doc_id, details, user["username"], attachment=attachment_ready)
-                    ok, msg = bc.add_transaction(tx)
-                    if ok:
-                        extra = f" · attachment={attachment_ready['filename']}" if attachment_ready else ""
-                        st.success(f"OK · {msg}{extra}")
-                    else:
-                        st.error(f"REJECTED · {msg}")
+                    try:
+                        tx = Transaction(doc_type, doc_id, details, user["username"], attachment=attachment_ready)
+                        ok, msg = bc.add_transaction(tx)
+                        if ok:
+                            extra = f" · attachment={attachment_ready['filename']}" if attachment_ready else ""
+                            st.success(f"OK · {msg}{extra}")
+                            append_log("SUBMIT", f"doc_type={doc_type} doc_id='{doc_id}'{' att=' + attachment_ready['filename'] if attachment_ready else ''}", "OK", username=user["username"])
+                        else:
+                            st.error(f"REJECTED · {msg}")
+                            append_log("SUBMIT_REJECTED", f"doc_type={doc_type} doc_id='{doc_id}' reason='{msg}'", "FAIL", username=user["username"])
+                    except Exception as e:
+                        st.error(f"SYSTEM_ERR: Unexpected error during submission. {e}")
+                        append_log("SUBMIT_ERROR", f"doc_type={doc_type} doc_id='{doc_id}' exception='{e}'", "FAIL", username=user["username"])
 
         with right_col:
             st.markdown('<div class="lc-sh"><span class="lc-sh-label">File Preview</span></div>', unsafe_allow_html=True)
@@ -1028,11 +1149,19 @@ with tabs[1]:
                 st.markdown("<br>", unsafe_allow_html=True)
                 if can("can_mint"):
                     if st.button(f"MINT BLOCK · {pending_count} RECORD{'S' if pending_count!=1 else ''} →", type="primary", use_container_width=True):
-                        ok, msg = bc.mint_pending_transactions(user["username"])
-                        if ok:
-                            st.success(f"OK · {msg}")
-                            save_ledger(bc)
-                            st.rerun()
+                        try:
+                            ok, msg = bc.mint_pending_transactions(user["username"])
+                            if ok:
+                                st.success(f"OK · {msg}")
+                                append_log("MINT", msg, "OK", username=user["username"])
+                                save_ledger(bc)
+                                st.rerun()
+                            else:
+                                st.error(f"MINT_ERR · {msg}")
+                                append_log("MINT_FAIL", msg, "FAIL", username=user["username"])
+                        except Exception as e:
+                            st.error(f"SYSTEM_ERR: Mint failed unexpectedly. {e}")
+                            append_log("MINT_ERROR", f"exception='{e}'", "FAIL", username=user["username"])
                 else:
                     st.markdown("""
                     <div class="lc-denied" style="padding:1.25rem;">
@@ -1171,9 +1300,11 @@ with tabs[3]:
                     is_valid = bc.is_chain_valid()
                 if is_valid:
                     st.markdown('<div class="lc-chain-ok">✓ &nbsp; CHAIN VALID — ALL BLOCK HASHES VERIFIED — NO TAMPERING DETECTED</div>', unsafe_allow_html=True)
+                    append_log("VERIFY_CHAIN", f"Chain verified across {len(bc.chain)} block(s). Result: VALID.", "OK", username=user["username"])
                     st.balloons()
                 else:
                     st.markdown('<div class="lc-chain-fail">✗ &nbsp; CRITICAL ALERT — HASH MISMATCH DETECTED — CHAIN INTEGRITY COMPROMISED</div>', unsafe_allow_html=True)
+                    append_log("VERIFY_CHAIN", f"Chain verified across {len(bc.chain)} block(s). Result: TAMPER DETECTED.", "WARN", username=user["username"])
 
             st.markdown("<br><br>", unsafe_allow_html=True)
             st.markdown(f'<div class="lc-sh"><span class="lc-sh-label">Chain Manifest</span><span class="lc-sh-count">{len(bc.chain)}</span></div>', unsafe_allow_html=True)
@@ -1192,3 +1323,37 @@ with tabs[3]:
                     "Prev Hash":   blk.previous_hash[:16]+"…",
                 })
             st.dataframe(pd.DataFrame(manifest), use_container_width=True, hide_index=True)
+
+            # ── Audit Log panel ────────────────────────────────────────────────
+            audit_entries = st.session_state.audit_log
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown(f'<div class="lc-sh"><span class="lc-sh-label">Audit Log</span><span class="lc-sh-count">{len(audit_entries)}</span></div>', unsafe_allow_html=True)
+
+            if audit_entries:
+                outcome_color = {"OK": "var(--green)", "FAIL": "var(--red)", "WARN": "var(--amber)"}
+                rows_html = ""
+                for entry in reversed(audit_entries):
+                    color = outcome_color.get(entry["outcome"], "var(--text1)")
+                    rows_html += f"""
+                    <tr>
+                      <td class="mono">{entry['ts_fmt']}</td>
+                      <td class="mono" style="color:{color};font-weight:600;">{entry['outcome']}</td>
+                      <td class="mono" style="color:var(--cyan);">{entry['event']}</td>
+                      <td class="mono" style="color:var(--text1);">{entry['username']}</td>
+                      <td class="mono" style="color:var(--text2);font-size:0.65rem;">{entry['detail']}</td>
+                    </tr>"""
+                st.markdown(f"""
+                <table class="lc-tx-table">
+                  <thead><tr>
+                    <th>Timestamp</th><th>Outcome</th><th>Event</th><th>Operator</th><th>Detail</th>
+                  </tr></thead>
+                  <tbody>{rows_html}</tbody>
+                </table>""", unsafe_allow_html=True)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                log_csv = "timestamp,outcome,event,username,detail\n" + \
+                    "\n".join(f'"{e["ts_fmt"]}","{e["outcome"]}","{e["event"]}","{e["username"]}","{e["detail"]}"'
+                              for e in audit_entries)
+                st.download_button("EXPORT AUDIT LOG CSV", log_csv, f"audit_log_{int(time.time())}.csv", "text/csv", use_container_width=True)
+            else:
+                st.markdown('<div class="lc-empty">// NO AUDIT EVENTS RECORDED YET</div>', unsafe_allow_html=True)
